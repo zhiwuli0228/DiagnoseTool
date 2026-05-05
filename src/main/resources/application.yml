@@ -1,0 +1,38 @@
+spring:
+  application:
+    name: thread-doctor
+
+thread-doctor:
+  cache:
+    max-entries: 1000
+    ttl-seconds: 7200
+  llm:
+    enabled: true
+    base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+    api-key: ${LLM_API_KEY}
+    model: qwen3.6-max-preview
+    connect-timeout-ms: 10000
+    read-timeout-ms: 60000
+    proxy:
+      enabled: false
+      host:
+      port: 0
+  log-analysis:
+    zip-enabled: true
+    directory-scan-enabled: false
+    allowed-roots: []
+    max-files: 100
+    max-compressed-bytes: 20971520
+    max-uncompressed-bytes: 52428800
+    max-compression-ratio: 20.0
+    raw-text-limit: 2000
+    stack-trace-limit: 8000
+    sample-log-limit: 5
+    response-limit: 200
+    max-search-limit: 200
+    masking-enabled: true
+  prompt:
+    template-dir:
+    cache-enabled: true
+    strict-rendering: true
+    default-output-language: zh-CN

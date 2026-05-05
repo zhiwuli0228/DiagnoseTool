@@ -1,0 +1,14 @@
+package com.geek.threaddoctor.pattern;
+
+public enum FaultPatternType {
+    JAVA_DEADLOCK,
+    LOCK_CONTENTION,
+    THREAD_POOL_EXHAUSTED,
+    REDIS_POOL_EXHAUSTED,
+    REDIS_IO_BLOCKED,
+    KAFKA_LAG_INCREASED,
+    DB_POOL_EXHAUSTED,
+    FULL_GC_PRESSURE,
+    SCHEDULE_TASK_STUCK,
+    CACHE_INCONSISTENCY
+}

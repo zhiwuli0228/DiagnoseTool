@@ -1,0 +1,15 @@
+thread-doctor:
+  prompt:
+    template-dir: ${LOCAL_PROMPT_TEMPLATE_DIR:}
+    cache-enabled: ${LOCAL_PROMPT_CACHE_ENABLED:false}
+    strict-rendering: ${LOCAL_PROMPT_STRICT_RENDERING:true}
+    default-output-language: ${LOCAL_PROMPT_DEFAULT_OUTPUT_LANGUAGE:zh-CN}
+  log-analysis:
+    directory-scan-enabled: ${LOCAL_LOG_ANALYSIS_DIRECTORY_SCAN_ENABLED:false}
+    allowed-roots:
+      - ${LOCAL_LOG_ANALYSIS_ALLOWED_ROOT:${user.dir}}
+  llm:
+    proxy:
+      enabled: ${LOCAL_LLM_PROXY_ENABLED:false}
+      host: ${LOCAL_LLM_PROXY_HOST:127.0.0.1}
+      port: ${LOCAL_LLM_PROXY_PORT:7890}

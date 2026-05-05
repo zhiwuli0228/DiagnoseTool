@@ -1,0 +1,23 @@
+thread-doctor:
+  prompt:
+    template-dir: ${PROMPT_TEMPLATE_DIR:}
+    cache-enabled: ${PROMPT_CACHE_ENABLED:true}
+    strict-rendering: ${PROMPT_STRICT_RENDERING:true}
+    default-output-language: ${PROMPT_DEFAULT_OUTPUT_LANGUAGE:zh-CN}
+  log-analysis:
+    zip-enabled: ${LOG_ANALYSIS_ZIP_ENABLED:true}
+    directory-scan-enabled: ${LOG_ANALYSIS_DIRECTORY_SCAN_ENABLED:false}
+    allowed-roots: ${LOG_ANALYSIS_ALLOWED_ROOTS:}
+    max-files: ${LOG_ANALYSIS_MAX_FILES:100}
+    max-compressed-bytes: ${LOG_ANALYSIS_MAX_COMPRESSED_BYTES:20971520}
+    max-uncompressed-bytes: ${LOG_ANALYSIS_MAX_UNCOMPRESSED_BYTES:52428800}
+    max-compression-ratio: ${LOG_ANALYSIS_MAX_COMPRESSION_RATIO:20.0}
+    masking-enabled: ${LOG_ANALYSIS_MASKING_ENABLED:true}
+  llm:
+    base-url: ${LLM_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
+    api-key: ${LLM_API_KEY}
+    model: ${LLM_MODEL:qwen3.6-max-preview}
+    proxy:
+      enabled: ${LLM_PROXY_ENABLED:false}
+      host: ${LLM_PROXY_HOST:}
+      port: ${LLM_PROXY_PORT:0}

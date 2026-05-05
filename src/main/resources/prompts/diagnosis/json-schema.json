@@ -1,0 +1,12 @@
+{
+  "type": "object",
+  "required": ["summary", "confidence"],
+  "properties": {
+    "summary": { "type": "string" },
+    "confidence": { "type": "string", "enum": ["LOW", "MEDIUM", "MEDIUM_HIGH", "HIGH"] },
+    "candidateRootCauses": { "type": "array" },
+    "evidenceChains": { "type": "array" },
+    "recommendedActions": { "type": "array" },
+    "missingInformation": { "type": "array" }
+  }
+}
