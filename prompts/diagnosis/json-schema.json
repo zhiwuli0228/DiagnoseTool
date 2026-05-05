@@ -1,0 +1,5 @@
+{
+  "system": "{{diagnosis_system_prompt}}",
+  "user": "{{diagnosis_user_prompt_with_evidence_pack}}",
+  "response_format": "json_schema_or_markdown"
+}
