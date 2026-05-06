@@ -1,5 +1,7 @@
 /frontend/dist/
 /frontend/node_modules/
+/target/
+/deploy/
 /.opencode/
 /.idea/
 /.codex/

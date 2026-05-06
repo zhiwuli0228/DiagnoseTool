@@ -102,4 +102,24 @@ describe('diagnosisApi', () => {
       method: 'GET'
     }));
   });
+
+  it('maps llm configuration endpoints', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(okJson({ activeSource: 'frontend' }));
+    const api = createDiagnosisApi(fetchImpl);
+
+    await api.getLlmConfiguration();
+    await api.saveLlmConfiguration({ baseUrl: 'https://llm.test/v1', apiKey: 'secret', model: 'qwen' });
+    await api.clearLlmConfiguration();
+
+    expect(fetchImpl.mock.calls.map((call) => [call[0], call[1].method])).toEqual([
+      ['/api/llm/configuration', 'GET'],
+      ['/api/llm/configuration', 'PUT'],
+      ['/api/llm/configuration', 'DELETE']
+    ]);
+    expect(fetchImpl.mock.calls[1][1].body).toBe(JSON.stringify({
+      baseUrl: 'https://llm.test/v1',
+      apiKey: 'secret',
+      model: 'qwen'
+    }));
+  });
 });

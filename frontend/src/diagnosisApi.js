@@ -1,5 +1,6 @@
 const incidentsBase = '/api/incidents';
 const logAnalysisBase = '/api/log-analysis/sessions';
+const llmConfigurationBase = '/api/llm/configuration';
 
 async function requestJson(path, options = {}, fetchImpl = fetch) {
   const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
@@ -136,6 +137,22 @@ export function createDiagnosisApi(fetchImpl = fetch) {
     generateOpenSpecDraft(sessionId) {
       return requestJson(`${logAnalysisBase}/${sessionId}/openspec-change-draft`, {
         method: 'POST'
+      }, fetchImpl);
+    },
+    getLlmConfiguration() {
+      return requestJson(llmConfigurationBase, {
+        method: 'GET'
+      }, fetchImpl);
+    },
+    saveLlmConfiguration(payload) {
+      return requestJson(llmConfigurationBase, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      }, fetchImpl);
+    },
+    clearLlmConfiguration() {
+      return requestJson(llmConfigurationBase, {
+        method: 'DELETE'
       }, fetchImpl);
     }
   };

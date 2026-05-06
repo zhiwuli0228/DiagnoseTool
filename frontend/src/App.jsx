@@ -9,6 +9,7 @@ import {
   FolderOpen,
   MessageSquare,
   RotateCw,
+  Settings,
   ShieldCheck,
   Stethoscope,
   Upload
@@ -123,10 +124,18 @@ function DiagnosisProgressBar({ progress }) {
   );
 }
 
+function emptyToNull(value) {
+  const trimmed = String(value || '').trim();
+  return trimmed ? trimmed : null;
+}
+
 export function ConversationalDiagnosisApp({ apiClient = diagnosisApi, config = frontendConfig, now = () => Date.now() }) {
   const [state, dispatch] = useReducer(diagnosisReducer, initialWorkflowState);
   const [copyStatus, setCopyStatus] = useState('');
   const [expandedEvidenceInputs, setExpandedEvidenceInputs] = useState({ log: false, jstack: false });
+  const [llmDraft, setLlmDraft] = useState({ baseUrl: '', apiKey: '', model: '' });
+  const [llmStatus, setLlmStatus] = useState(null);
+  const [llmMessage, setLlmMessage] = useState('');
   const lastStartedAt = useRef({});
   const runningTasksRef = useRef(new Set());
   const progressTimerRef = useRef(null);
@@ -157,6 +166,32 @@ export function ConversationalDiagnosisApp({ apiClient = diagnosisApi, config = 
   }
 
   useEffect(() => () => stopDiagnosisProgressPolling(), []);
+
+  useEffect(() => {
+    let active = true;
+    if (!apiClient.getLlmConfiguration) {
+      return undefined;
+    }
+    apiClient.getLlmConfiguration()
+      .then((status) => {
+        if (active) {
+          setLlmStatus(status);
+          setLlmDraft({
+            baseUrl: status?.baseUrl?.configuredByFrontend ? status.baseUrl.value || '' : '',
+            apiKey: '',
+            model: status?.model?.configuredByFrontend ? status.model.value || '' : ''
+          });
+        }
+      })
+      .catch((error) => {
+        if (active) {
+          setLlmMessage(error.message || 'LLM configuration status unavailable.');
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [apiClient]);
 
   if (!config.conversationalDiagnosisEnabled) {
     return (
@@ -205,6 +240,36 @@ export function ConversationalDiagnosisApp({ apiClient = diagnosisApi, config = 
   const updateEvidenceDraft = (field, value) => dispatch({ type: 'evidenceDraftChanged', field, value });
   const updateMetricsDraft = (field, value) => dispatch({ type: 'metricsDraftChanged', field, value });
   const updateLogAnalysisDraft = (field, value) => dispatch({ type: 'logAnalysisDraftChanged', field, value });
+  const updateLlmDraft = (field, value) => setLlmDraft((current) => ({ ...current, [field]: value }));
+
+  async function saveLlmConfiguration(event) {
+    event.preventDefault();
+    setLlmMessage('');
+    try {
+      const status = await apiClient.saveLlmConfiguration({
+        baseUrl: emptyToNull(llmDraft.baseUrl),
+        apiKey: emptyToNull(llmDraft.apiKey),
+        model: emptyToNull(llmDraft.model)
+      });
+      setLlmStatus(status);
+      setLlmDraft((current) => ({ ...current, apiKey: '' }));
+      setLlmMessage('LLM configuration saved. It is active for the next diagnosis request.');
+    } catch (error) {
+      setLlmMessage(error.message || 'Failed to save LLM configuration.');
+    }
+  }
+
+  async function clearLlmConfiguration() {
+    setLlmMessage('');
+    try {
+      const status = await apiClient.clearLlmConfiguration();
+      setLlmStatus(status);
+      setLlmDraft({ baseUrl: '', apiKey: '', model: '' });
+      setLlmMessage('LLM configuration cleared. Backend defaults are active.');
+    } catch (error) {
+      setLlmMessage(error.message || 'Failed to clear LLM configuration.');
+    }
+  }
 
   function toggleEvidenceInput(name) {
     setExpandedEvidenceInputs((current) => ({ ...current, [name]: !current[name] }));
@@ -393,6 +458,28 @@ export function ConversationalDiagnosisApp({ apiClient = diagnosisApi, config = 
         </aside>
 
         <div className="control-stack">
+          <section className="panel llm-settings-panel">
+            <div className="panel-title"><Settings size={18} /><h2>LLM configuration</h2></div>
+            <form className="llm-settings-form" onSubmit={saveLlmConfiguration}>
+              <label>baseUrl<input value={llmDraft.baseUrl} placeholder={llmStatus?.baseUrl?.value || 'https://example.com/v1'} onChange={(event) => updateLlmDraft('baseUrl', event.target.value)} /></label>
+              <label>API key<input type="password" value={llmDraft.apiKey} placeholder={llmStatus?.apiKey?.value || 'Backend default'} onChange={(event) => updateLlmDraft('apiKey', event.target.value)} /></label>
+              <label>model<input value={llmDraft.model} placeholder={llmStatus?.model?.value || 'Backend default'} onChange={(event) => updateLlmDraft('model', event.target.value)} /></label>
+              <div className="llm-settings-actions">
+                <button type="submit" disabled={isBusy}>Save LLM configuration</button>
+                <button type="button" className="secondary-button compact-button" onClick={clearLlmConfiguration} disabled={isBusy}>Clear LLM configuration</button>
+              </div>
+            </form>
+            {llmStatus && (
+              <div className="status-line llm-status">
+                <span>Active source: {llmStatus.activeSource}</span>
+                <span>baseUrl: {llmStatus.baseUrl?.source}</span>
+                <span>API key: {llmStatus.apiKey?.source} {llmStatus.apiKey?.value ? `(${llmStatus.apiKey.value})` : ''}</span>
+                <span>model: {llmStatus.model?.source}</span>
+              </div>
+            )}
+            {llmMessage && <p className={llmMessage.includes('Failed') || llmMessage.includes('invalid') ? 'progress-warning' : 'execution-result'}>{llmMessage}</p>}
+          </section>
+
           <section className="panel">
             <div className="panel-title"><Activity size={18} /><h2>{i18n.t('app.incident')}</h2></div>
             <label>{i18n.t('labels.title')}<input title={i18n.t('tips.title')} value={state.incidentDraft.title} onChange={(event) => updateIncidentDraft('title', event.target.value)} /></label>

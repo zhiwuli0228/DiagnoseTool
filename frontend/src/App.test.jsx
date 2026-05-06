@@ -80,7 +80,25 @@ function createApiClient() {
       }]
     }),
     getEvidencePack: vi.fn().mockResolvedValue({ sessionId: 'LOG-1', incidentSummary: 'Payment failed' }),
-    getEvidencePackMarkdown: vi.fn().mockResolvedValue('# Evidence Pack\nPayment failed')
+    getEvidencePackMarkdown: vi.fn().mockResolvedValue('# Evidence Pack\nPayment failed'),
+    getLlmConfiguration: vi.fn().mockResolvedValue({
+      activeSource: 'backend',
+      baseUrl: { value: 'https://backend.test/v1', source: 'backend', configuredByFrontend: false },
+      apiKey: { value: 'back****-key', source: 'backend', configuredByFrontend: false },
+      model: { value: 'backend-model', source: 'backend', configuredByFrontend: false }
+    }),
+    saveLlmConfiguration: vi.fn().mockResolvedValue({
+      activeSource: 'frontend',
+      baseUrl: { value: 'https://frontend.test/v1', source: 'frontend', configuredByFrontend: true },
+      apiKey: { value: 'fron****-key', source: 'frontend', configuredByFrontend: true },
+      model: { value: 'frontend-model', source: 'frontend', configuredByFrontend: true }
+    }),
+    clearLlmConfiguration: vi.fn().mockResolvedValue({
+      activeSource: 'backend',
+      baseUrl: { value: 'https://backend.test/v1', source: 'backend', configuredByFrontend: false },
+      apiKey: { value: 'back****-key', source: 'backend', configuredByFrontend: false },
+      model: { value: 'backend-model', source: 'backend', configuredByFrontend: false }
+    })
   };
 }
 
@@ -123,6 +141,32 @@ describe('ConversationalDiagnosisApp', () => {
 
     await user.click(screen.getByRole('button', { name: i18n.t('buttons.generateIncidentCard') }));
     expect(await screen.findByText('# Redis Review')).toBeInTheDocument();
+  });
+
+  it('saves and clears llm configuration without reloading', async () => {
+    const user = userEvent.setup();
+    const apiClient = createApiClient();
+
+    render(<ConversationalDiagnosisApp apiClient={apiClient} config={enabledConfig} />);
+
+    expect(await screen.findByText(/Active source: backend/)).toBeInTheDocument();
+    await user.type(screen.getByLabelText('baseUrl'), 'https://frontend.test/v1');
+    await user.type(screen.getByLabelText('API key'), 'frontend-secret-key');
+    await user.type(screen.getByLabelText('model'), 'frontend-model');
+    await user.click(screen.getByRole('button', { name: 'Save LLM configuration' }));
+
+    expect(apiClient.saveLlmConfiguration).toHaveBeenCalledWith({
+      baseUrl: 'https://frontend.test/v1',
+      apiKey: 'frontend-secret-key',
+      model: 'frontend-model'
+    });
+    expect(await screen.findByText(/Active source: frontend/)).toBeInTheDocument();
+    expect(screen.getByText(/fron\*\*\*\*-key/)).toBeInTheDocument();
+    expect(screen.queryByText(/frontend-secret-key/)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Clear LLM configuration' }));
+    expect(apiClient.clearLlmConfiguration).toHaveBeenCalled();
+    expect(await screen.findByText(/Active source: backend/)).toBeInTheDocument();
   });
 
   it('submits log and jstack evidence together from one panel', async () => {

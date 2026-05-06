@@ -169,6 +169,30 @@ button:disabled {
   background: #e8f3f5;
 }
 
+.compact-button {
+  width: auto;
+}
+
+.llm-settings-form {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.2fr) minmax(160px, 0.9fr) minmax(140px, 0.8fr);
+  gap: 10px;
+  align-items: end;
+  min-width: 0;
+}
+
+.llm-settings-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.llm-status {
+  align-items: flex-start;
+}
+
 .collapsible-input {
   display: grid;
   gap: 10px;

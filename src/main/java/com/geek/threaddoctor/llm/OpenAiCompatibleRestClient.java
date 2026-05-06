@@ -24,10 +24,9 @@ public class OpenAiCompatibleRestClient implements LlmClient {
             confidence must be one of: LOW, MEDIUM, MEDIUM_HIGH, HIGH.
             """;
 
-    private final RestClient restClient;
+    private final RestClient.Builder restClientBuilder;
     private final ObjectMapper objectMapper;
-    private final String model;
-    private final String apiKey;
+    private final LlmRuntimeConfigurationService configurationService;
 
     public OpenAiCompatibleRestClient(
             @Value("${thread-doctor.llm.base-url}") String baseUrl,
@@ -38,14 +37,12 @@ public class OpenAiCompatibleRestClient implements LlmClient {
             @Value("${thread-doctor.llm.proxy.enabled:false}") boolean proxyEnabled,
             @Value("${thread-doctor.llm.proxy.host:}") String proxyHost,
             @Value("${thread-doctor.llm.proxy.port:0}") int proxyPort,
+            LlmRuntimeConfigurationService configurationService,
             ObjectMapper objectMapper) {
-        this.restClient = RestClient.builder()
-                .baseUrl(baseUrl)
-                .requestFactory(createRequestFactory(connectTimeoutMs, readTimeoutMs, proxyEnabled, proxyHost, proxyPort))
-                .build();
+        this.restClientBuilder = RestClient.builder()
+                .requestFactory(createRequestFactory(connectTimeoutMs, readTimeoutMs, proxyEnabled, proxyHost, proxyPort));
         this.objectMapper = objectMapper;
-        this.apiKey = apiKey;
-        this.model = model;
+        this.configurationService = configurationService;
     }
 
     static SimpleClientHttpRequestFactory createRequestFactory(int connectTimeoutMs, int readTimeoutMs,
@@ -66,25 +63,36 @@ public class OpenAiCompatibleRestClient implements LlmClient {
     @Override
     @SuppressWarnings("unchecked")
     public LlmResponse complete(LlmRequest request) {
-        Map<String, Object> body = Map.of(
-                "model", model,
-                "temperature", request.temperature(),
-                "max_tokens", request.maxTokens(),
-                "response_format", Map.of("type", "json_object"),
-                "messages", List.of(
-                        Map.of("role", "system", "content", JSON_ONLY_SYSTEM_PROMPT),
-                        Map.of("role", "user", "content", buildUserContent(request))));
-        Map<String, Object> response = restClient.post()
+        EffectiveLlmConfiguration configuration = configurationService.effectiveConfiguration();
+        Map<String, Object> body = buildRequestBody(request, configuration);
+        Map<String, Object> response = clientFor(configuration).post()
                 .uri("/chat/completions")
                 .contentType(MediaType.APPLICATION_JSON)
-                .header("Authorization", "Bearer " + apiKey)
+                .header("Authorization", "Bearer " + configuration.apiKey())
                 .body(body)
                 .retrieve()
                 .body(Map.class);
         if (response == null) {
             throw new IllegalStateException("Empty LLM response");
         }
-        return new LlmResponse(extractContent(response), model, 0, 0);
+        return new LlmResponse(extractContent(response), configuration.model(), 0, 0);
+    }
+
+    Map<String, Object> buildRequestBody(LlmRequest request, EffectiveLlmConfiguration configuration) {
+        return Map.of(
+                "model", configuration.model(),
+                "temperature", request.temperature(),
+                "max_tokens", request.maxTokens(),
+                "response_format", Map.of("type", "json_object"),
+                "messages", List.of(
+                        Map.of("role", "system", "content", JSON_ONLY_SYSTEM_PROMPT),
+                        Map.of("role", "user", "content", buildUserContent(request))));
+    }
+
+    RestClient clientFor(EffectiveLlmConfiguration configuration) {
+        return restClientBuilder.clone()
+                .baseUrl(configuration.baseUrl())
+                .build();
     }
 
     String buildUserContent(LlmRequest request) {
