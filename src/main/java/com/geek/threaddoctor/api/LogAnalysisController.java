@@ -11,9 +11,11 @@ import com.geek.threaddoctor.loganalysis.LogSearchRequest;
 import com.geek.threaddoctor.loganalysis.LogSearchResult;
 import com.geek.threaddoctor.loganalysis.OpenSpecChangeDraft;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Pattern;
 import java.util.List;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -25,6 +27,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/log-analysis/sessions")
+@Validated
 public class LogAnalysisController {
     private final LogAnalysisService service;
 
@@ -38,43 +41,47 @@ public class LogAnalysisController {
     }
 
     @GetMapping("/{sessionId}")
-    LogAnalysisSession get(@PathVariable String sessionId) {
+    LogAnalysisSession get(@PathVariable @Pattern(regexp = "LOG-[A-Za-z0-9-]{1,80}") String sessionId) {
         return service.getSession(sessionId);
     }
 
     @PostMapping(path = "/{sessionId}/zip", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    LogAnalysisSession uploadZip(@PathVariable String sessionId, @RequestParam("file") MultipartFile file) {
+    LogAnalysisSession uploadZip(@PathVariable @Pattern(regexp = "LOG-[A-Za-z0-9-]{1,80}") String sessionId,
+            @RequestParam("file") MultipartFile file) {
         return service.uploadZip(sessionId, file);
     }
 
     @PostMapping(path = "/{sessionId}/directory", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    LogAnalysisSession uploadDirectory(@PathVariable String sessionId, @RequestParam("files") MultipartFile[] files) {
+    LogAnalysisSession uploadDirectory(@PathVariable @Pattern(regexp = "LOG-[A-Za-z0-9-]{1,80}") String sessionId,
+            @RequestParam("files") MultipartFile[] files) {
         return service.uploadDirectoryFiles(sessionId, files);
     }
 
     @PostMapping("/{sessionId}/directory-scan")
-    LogAnalysisSession scanDirectory(@PathVariable String sessionId, @Valid @RequestBody DirectoryScanRequest request) {
+    LogAnalysisSession scanDirectory(@PathVariable @Pattern(regexp = "LOG-[A-Za-z0-9-]{1,80}") String sessionId,
+            @Valid @RequestBody DirectoryScanRequest request) {
         return service.scanDirectory(sessionId, request.path());
     }
 
     @PostMapping("/{sessionId}/search")
-    LogSearchResult search(@PathVariable String sessionId, @RequestBody(required = false) LogSearchRequest request) {
+    LogSearchResult search(@PathVariable @Pattern(regexp = "LOG-[A-Za-z0-9-]{1,80}") String sessionId,
+            @Valid @RequestBody(required = false) LogSearchRequest request) {
         return service.search(sessionId, request);
     }
 
     @GetMapping("/{sessionId}/clusters")
-    List<LogCluster> clusters(@PathVariable String sessionId) {
+    List<LogCluster> clusters(@PathVariable @Pattern(regexp = "LOG-[A-Za-z0-9-]{1,80}") String sessionId) {
         return service.clusters(sessionId);
     }
 
     @GetMapping("/{sessionId}/timeline")
-    IncidentTimeline timeline(@PathVariable String sessionId) {
+    IncidentTimeline timeline(@PathVariable @Pattern(regexp = "LOG-[A-Za-z0-9-]{1,80}") String sessionId) {
         return service.timeline(sessionId);
     }
 
     @GetMapping("/{sessionId}/evidence-pack")
-    ResponseEntity<?> evidencePack(@PathVariable String sessionId,
-            @RequestParam(defaultValue = "json") String format) {
+    ResponseEntity<?> evidencePack(@PathVariable @Pattern(regexp = "LOG-[A-Za-z0-9-]{1,80}") String sessionId,
+            @RequestParam(defaultValue = "json") @Pattern(regexp = "json|markdown", flags = Pattern.Flag.CASE_INSENSITIVE) String format) {
         if ("markdown".equalsIgnoreCase(format)) {
             return ResponseEntity.ok()
                     .contentType(MediaType.TEXT_MARKDOWN)
@@ -85,12 +92,12 @@ public class LogAnalysisController {
     }
 
     @PostMapping("/{sessionId}/codex-task")
-    CodexTask codexTask(@PathVariable String sessionId) {
+    CodexTask codexTask(@PathVariable @Pattern(regexp = "LOG-[A-Za-z0-9-]{1,80}") String sessionId) {
         return service.codexTask(sessionId);
     }
 
     @PostMapping("/{sessionId}/openspec-change-draft")
-    OpenSpecChangeDraft openSpecChangeDraft(@PathVariable String sessionId) {
+    OpenSpecChangeDraft openSpecChangeDraft(@PathVariable @Pattern(regexp = "LOG-[A-Za-z0-9-]{1,80}") String sessionId) {
         return service.openSpecChangeDraft(sessionId);
     }
 }

@@ -25,6 +25,7 @@ import com.geek.threaddoctor.memory.IncidentCardService;
 import com.geek.threaddoctor.metrics.MetricsSnapshot;
 import com.geek.threaddoctor.metrics.MetricsSnapshotService;
 import com.geek.threaddoctor.common.RiskLevel;
+import com.geek.threaddoctor.common.ApiExceptionHandler;
 import com.geek.threaddoctor.recovery.RecoveryAction;
 import com.geek.threaddoctor.recovery.RecoveryActionService;
 import java.time.LocalDateTime;
@@ -53,7 +54,9 @@ class ApiContractTest {
                 new MetricsController(metricsSnapshotService),
                 new DiagnosisController(diagnosisReportService, diagnosisProgressService),
                 new RecoveryController(recoveryActionService),
-                new IncidentCardController(incidentCardService)).build();
+                new IncidentCardController(incidentCardService))
+                .setControllerAdvice(new ApiExceptionHandler())
+                .build();
     }
 
     @Test
@@ -147,5 +150,24 @@ class ApiContractTest {
                 .andExpect(jsonPath("$.status").value("COMPLETED"))
                 .andExpect(jsonPath("$.percent").value(100))
                 .andExpect(jsonPath("$.step").value("COMPLETED"));
+    }
+
+    @Test
+    void rejectsMalformedFrontendInputs() throws Exception {
+        mockMvc.perform(post("/api/incidents")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"" + "x".repeat(121) + "\",\"severity\":\"HIGH\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("title")));
+
+        mockMvc.perform(post("/api/incidents/INC-1/evidences")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"type\":\"NOT_A_TYPE\",\"content\":\"error\"}"))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(post("/api/incidents/INC-1/metrics")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"redisMetricsJson\":\"" + "x".repeat(100001) + "\"}"))
+                .andExpect(status().isBadRequest());
     }
 }

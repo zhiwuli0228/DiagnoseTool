@@ -119,4 +119,4 @@ Runtime files:
 
 ## LLM Runtime Configuration
 
-The deployed frontend includes an `LLM configuration` panel. Operators can update `baseUrl`, `API key`, and `model` from the browser. Saved values are process-local runtime overrides and take effect for the next diagnosis request. Empty fields fall back to backend service configuration from `application*.yml` or environment variables. API keys are masked in read responses.
+The deployed frontend includes an `LLM configuration` panel. Operators can update `baseUrl` and `model` from the browser. API keys are not configurable from the frontend or YAML files; set `LLM_API_KEY` in the runtime environment. Saved frontend values are process-local runtime overrides and take effect for the next diagnosis request. Empty fields fall back to backend service configuration.

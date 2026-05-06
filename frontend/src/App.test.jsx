@@ -90,7 +90,7 @@ function createApiClient() {
     saveLlmConfiguration: vi.fn().mockResolvedValue({
       activeSource: 'frontend',
       baseUrl: { value: 'https://frontend.test/v1', source: 'frontend', configuredByFrontend: true },
-      apiKey: { value: 'fron****-key', source: 'frontend', configuredByFrontend: true },
+      apiKey: { value: 'back****-key', source: 'backend', configuredByFrontend: false },
       model: { value: 'frontend-model', source: 'frontend', configuredByFrontend: true }
     }),
     clearLlmConfiguration: vi.fn().mockResolvedValue({
@@ -151,17 +151,15 @@ describe('ConversationalDiagnosisApp', () => {
 
     expect(await screen.findByText(/Active source: backend/)).toBeInTheDocument();
     await user.type(screen.getByLabelText('baseUrl'), 'https://frontend.test/v1');
-    await user.type(screen.getByLabelText('API key'), 'frontend-secret-key');
     await user.type(screen.getByLabelText('model'), 'frontend-model');
     await user.click(screen.getByRole('button', { name: 'Save LLM configuration' }));
 
     expect(apiClient.saveLlmConfiguration).toHaveBeenCalledWith({
       baseUrl: 'https://frontend.test/v1',
-      apiKey: 'frontend-secret-key',
       model: 'frontend-model'
     });
     expect(await screen.findByText(/Active source: frontend/)).toBeInTheDocument();
-    expect(screen.getByText(/fron\*\*\*\*-key/)).toBeInTheDocument();
+    expect(screen.getByText(/back\*\*\*\*-key/)).toBeInTheDocument();
     expect(screen.queryByText(/frontend-secret-key/)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Clear LLM configuration' }));
@@ -369,6 +367,52 @@ describe('ConversationalDiagnosisApp', () => {
     expect(URL.createObjectURL).toHaveBeenCalled();
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:result');
     createElement.mockRestore();
+  });
+
+  it('renders unresolved diagnosis choices and copies codebase prompt', async () => {
+    const user = userEvent.setup();
+    const apiClient = createApiClient();
+    const writeText = vi.fn().mockResolvedValue();
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText }
+    });
+    apiClient.runDiagnosis.mockResolvedValue({
+      id: 'RPT-2',
+      summary: 'Need more evidence before localization',
+      confidence: 'LOW',
+      localizationStatus: 'NEEDS_MORE_EVIDENCE',
+      unresolvedReasons: ['Only timeout logs are available'],
+      followUpEvidenceRequests: [{
+        title: 'Capture jstack',
+        reason: 'Need blocked thread stacks',
+        expectedFormat: 'jstack text',
+        guidance: 'Submit jstack during the timeout window'
+      }],
+      codebasePrompt: {
+        markdown: '# Continue Diagnosis With Codebase Context\nNeed more evidence before localization',
+        documentOnlyWarning: 'Document-only prompt for Codex/OpenCode handoff.'
+      },
+      reportJson: '{}'
+    });
+
+    render(<ConversationalDiagnosisApp apiClient={apiClient} config={enabledConfig} />);
+
+    await user.click(screen.getByRole('button', { name: i18n.t('buttons.startSession') }));
+    await screen.findByText('INC-1');
+    await user.click(screen.getByRole('button', { name: i18n.t('buttons.runDiagnosis') }));
+
+    expect(await screen.findByText('Need more evidence before localization')).toBeInTheDocument();
+    expect(screen.getByText('Only timeout logs are available')).toBeInTheDocument();
+    expect(screen.getByText('Capture jstack')).toBeInTheDocument();
+    expect(screen.getByText(/Continue Diagnosis With Codebase Context/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: i18n.t('buttons.copyCodebasePrompt') }));
+    expect(writeText).toHaveBeenCalledWith('# Continue Diagnosis With Codebase Context\nNeed more evidence before localization');
+
+    await user.click(screen.getByRole('button', { name: i18n.t('buttons.continueEvidence') }));
+    expect(screen.getByRole('button', { name: i18n.t('labels.logSnippetContent') })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', { name: i18n.t('labels.jstackContent') })).toHaveAttribute('aria-expanded', 'true');
   });
 
   it('polls and renders diagnosis progress while diagnosis is running', async () => {

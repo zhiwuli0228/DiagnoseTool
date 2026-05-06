@@ -13,6 +13,8 @@ public class RuleBasedLlmClient implements LlmClient {
                 {
                   "summary": "Rule-based fallback diagnosis completed with available evidence.",
                   "confidence": "MEDIUM_HIGH",
+                  "localizationStatus": "UNRESOLVED",
+                  "unresolvedReasons": ["No external LLM is configured, so codebase-aware localization is not available."],
                   "candidateRootCauses": [],
                   "evidenceChains": [],
                   "recommendedActions": []

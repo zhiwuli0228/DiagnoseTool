@@ -17,6 +17,11 @@ public record LogAnalysisProperties(
         int sampleLogLimit,
         int responseLimit,
         int maxSearchLimit,
+        int maxEventsPerSession,
+        int maxZipNestingDepth,
+        long maxEntryBytes,
+        int maxSearchKeywordLength,
+        int maxSearchFragments,
         boolean maskingEnabled) {
     public LogAnalysisProperties {
         allowedRoots = allowedRoots == null ? List.of() : List.copyOf(allowedRoots);
@@ -29,5 +34,19 @@ public record LogAnalysisProperties(
         sampleLogLimit = sampleLogLimit <= 0 ? 5 : sampleLogLimit;
         responseLimit = responseLimit <= 0 ? 200 : responseLimit;
         maxSearchLimit = maxSearchLimit <= 0 ? 200 : maxSearchLimit;
+        maxEventsPerSession = maxEventsPerSession <= 0 ? 250_000 : maxEventsPerSession;
+        maxZipNestingDepth = maxZipNestingDepth <= 0 ? 3 : maxZipNestingDepth;
+        maxEntryBytes = maxEntryBytes <= 0 ? 20 * 1024 * 1024L : maxEntryBytes;
+        maxSearchKeywordLength = maxSearchKeywordLength <= 0 ? 2000 : maxSearchKeywordLength;
+        maxSearchFragments = maxSearchFragments <= 0 ? 20 : maxSearchFragments;
+    }
+
+    public LogAnalysisProperties(boolean zipEnabled, boolean directoryScanEnabled, List<String> allowedRoots,
+            int maxFiles, long maxCompressedBytes, long maxUncompressedBytes, double maxCompressionRatio,
+            int rawTextLimit, int stackTraceLimit, int sampleLogLimit, int responseLimit, int maxSearchLimit,
+            boolean maskingEnabled) {
+        this(zipEnabled, directoryScanEnabled, allowedRoots, maxFiles, maxCompressedBytes, maxUncompressedBytes,
+                maxCompressionRatio, rawTextLimit, stackTraceLimit, sampleLogLimit, responseLimit, maxSearchLimit,
+                250_000, 3, 20 * 1024 * 1024L, 2000, 20, maskingEnabled);
     }
 }

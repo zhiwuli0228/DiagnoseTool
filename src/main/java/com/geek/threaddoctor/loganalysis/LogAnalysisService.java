@@ -2,6 +2,8 @@ package com.geek.threaddoctor.loganalysis;
 
 import com.geek.threaddoctor.common.ResourceNotFoundException;
 import com.geek.threaddoctor.prompt.PromptAssemblyService;
+import com.geek.threaddoctor.security.ArtifactSanitizer;
+import com.geek.threaddoctor.security.SecurityLimitsProperties;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -41,15 +43,27 @@ public class LogAnalysisService {
     private final LogAnalysisProperties properties;
     private final LogParser parser;
     private final PromptAssemblyService promptAssemblyService;
+    private final ArtifactSanitizer artifactSanitizer;
+
+    public LogAnalysisService(InMemoryLogAnalysisSessionRepository repository,
+            LogAnalysisProperties properties,
+            LogParser parser,
+            PromptAssemblyService promptAssemblyService,
+            ArtifactSanitizer artifactSanitizer) {
+        this.repository = repository;
+        this.properties = properties;
+        this.parser = parser;
+        this.promptAssemblyService = promptAssemblyService;
+        this.artifactSanitizer = artifactSanitizer;
+    }
 
     public LogAnalysisService(InMemoryLogAnalysisSessionRepository repository,
             LogAnalysisProperties properties,
             LogParser parser,
             PromptAssemblyService promptAssemblyService) {
-        this.repository = repository;
-        this.properties = properties;
-        this.parser = parser;
-        this.promptAssemblyService = promptAssemblyService;
+        this(repository, properties, parser, promptAssemblyService,
+                new ArtifactSanitizer(new SensitiveDataMasker(), new SecurityLimitsProperties(
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)));
     }
 
     public LogAnalysisSession createSession() {
@@ -72,11 +86,12 @@ public class LogAnalysisService {
         if (file.getSize() > properties.maxCompressedBytes()) {
             throw structuredFailure(sessionId, "ZIP_TOO_LARGE", "Uploaded ZIP exceeds configured compressed size limit.", file.getOriginalFilename());
         }
+        validateZipUpload(sessionId, file);
         LogAnalysisSession session = getSession(sessionId);
         List<LogEvent> parsedEvents = new ArrayList<>(session.events());
         ZipReadState state = new ZipReadState();
         try {
-            readZipEntries(sessionId, file.getOriginalFilename(), file.getBytes(), file.getSize(), session, parsedEvents, state);
+            readZipEntries(sessionId, file.getOriginalFilename(), file.getBytes(), file.getSize(), session, parsedEvents, state, 0);
         } catch (IOException ex) {
             throw structuredFailure(sessionId, "ZIP_READ_FAILED", ex.getMessage(), file.getOriginalFilename());
         }
@@ -103,19 +118,24 @@ public class LogAnalysisService {
                 continue;
             }
             String sourceFile = safeZipEntryName(sessionId, file.getOriginalFilename() == null ? file.getName() : file.getOriginalFilename());
+            validateSupportedSourceFile(sessionId, sourceFile);
             try {
                 byte[] bytes = file.getBytes();
+                if (bytes.length > properties.maxEntryBytes()) {
+                    throw structuredFailure(sessionId, "DIRECTORY_ENTRY_SIZE_LIMIT", "Directory file exceeds configured per-entry size limit.", sourceFile);
+                }
                 totalBytes += bytes.length;
                 if (totalBytes > properties.maxUncompressedBytes()) {
                     throw structuredFailure(sessionId, "DIRECTORY_SIZE_LIMIT", "Directory content exceeds configured limit.", sourceFile);
                 }
                 if (isNestedZip(sourceFile, bytes)) {
-                    readZipEntries(sessionId, sourceFile, bytes, bytes.length, session, parsedEvents, new ZipReadState());
+                    readZipEntries(sessionId, sourceFile, bytes, bytes.length, session, parsedEvents, new ZipReadState(), 0);
                     continue;
                 }
                 ParsedLogFile parsed = parser.parse(sourceFile, new String(bytes, StandardCharsets.UTF_8), properties);
                 session.addFileSummary(parsed.summary());
                 parsedEvents.addAll(parsed.events());
+                enforceEventLimit(sessionId, parsedEvents.size(), sourceFile);
             } catch (IOException ex) {
                 throw structuredFailure(sessionId, "DIRECTORY_READ_FAILED", ex.getMessage(), sourceFile);
             }
@@ -126,7 +146,10 @@ public class LogAnalysisService {
     }
 
     private void readZipEntries(String sessionId, String archiveName, byte[] archiveBytes, long rootCompressedSize,
-            LogAnalysisSession session, List<LogEvent> parsedEvents, ZipReadState state) throws IOException {
+            LogAnalysisSession session, List<LogEvent> parsedEvents, ZipReadState state, int depth) throws IOException {
+        if (depth > properties.maxZipNestingDepth()) {
+            throw structuredFailure(sessionId, "ZIP_NESTING_LIMIT", "ZIP nesting depth exceeds configured limit.", archiveName);
+        }
         try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(archiveBytes))) {
             ZipEntry entry;
             while ((entry = zip.getNextEntry()) != null) {
@@ -139,7 +162,11 @@ public class LogAnalysisService {
                 }
                 String entryName = safeZipEntryName(sessionId, entry.getName());
                 String sourceFile = safeZipEntryName(sessionId, archiveName + "/" + entryName);
+                validateSupportedSourceFile(sessionId, sourceFile);
                 byte[] bytes = zip.readAllBytes();
+                if (bytes.length > properties.maxEntryBytes()) {
+                    throw structuredFailure(sessionId, "ZIP_ENTRY_SIZE_LIMIT", "ZIP entry exceeds configured per-entry size limit.", sourceFile);
+                }
                 state.totalUncompressed += bytes.length;
                 if (state.totalUncompressed > properties.maxUncompressedBytes()) {
                     throw structuredFailure(sessionId, "ZIP_UNCOMPRESSED_LIMIT", "ZIP uncompressed content exceeds configured limit.", sourceFile);
@@ -148,12 +175,13 @@ public class LogAnalysisService {
                     throw structuredFailure(sessionId, "ZIP_RATIO_LIMIT", "ZIP decompression ratio exceeds configured limit.", sourceFile);
                 }
                 if (isNestedZip(sourceFile, bytes)) {
-                    readZipEntries(sessionId, sourceFile, bytes, rootCompressedSize, session, parsedEvents, state);
+                    readZipEntries(sessionId, sourceFile, bytes, rootCompressedSize, session, parsedEvents, state, depth + 1);
                     continue;
                 }
                 ParsedLogFile parsed = parser.parse(sourceFile, new String(bytes, StandardCharsets.UTF_8), properties);
                 session.addFileSummary(parsed.summary());
                 parsedEvents.addAll(parsed.events());
+                enforceEventLimit(sessionId, parsedEvents.size(), sourceFile);
             }
         }
     }
@@ -182,6 +210,7 @@ public class LogAnalysisService {
                 ParsedLogFile parsed = parser.parse(root.relativize(file).toString(), Files.readString(file), properties);
                 session.addFileSummary(parsed.summary());
                 parsedEvents.addAll(parsed.events());
+                enforceEventLimit(sessionId, parsedEvents.size(), file.toString());
             }
         } catch (IOException ex) {
             throw structuredFailure(sessionId, "DIRECTORY_READ_FAILED", ex.getMessage(), rawPath);
@@ -192,6 +221,7 @@ public class LogAnalysisService {
     }
 
     public LogSearchResult search(String sessionId, LogSearchRequest request) {
+        validateSearchRequest(request);
         LogAnalysisSession session = getSession(sessionId);
         int limit = boundedLimit(request == null ? null : request.limit());
         boolean includeStackTrace = request == null || request.includeStackTrace() == null || request.includeStackTrace();
@@ -295,20 +325,75 @@ public class LogAnalysisService {
         }
         markdown.append("\n## Limitations\n\n");
         pack.limitations().forEach(limit -> markdown.append("- ").append(limit).append("\n"));
-        return TextBounds.limit(markdown.toString(), properties.responseLimit() * properties.rawTextLimit());
+        return artifactSanitizer.sanitize(markdown.toString(), properties);
     }
 
     public CodexTask codexTask(String sessionId) {
         EvidencePack pack = evidencePack(sessionId);
         String markdown = promptAssemblyService.buildCodexTaskPrompt(pack);
-        return new CodexTask(sessionId, TextBounds.limit(markdown, properties.responseLimit() * properties.rawTextLimit()));
+        return new CodexTask(sessionId, artifactSanitizer.sanitize(markdown, properties));
     }
 
     public OpenSpecChangeDraft openSpecChangeDraft(String sessionId) {
         EvidencePack pack = evidencePack(sessionId);
-        String markdown = promptAssemblyService.buildOpenSpecChangeDraftPrompt(pack);
+        String markdown = artifactSanitizer.sanitize(promptAssemblyService.buildOpenSpecChangeDraftPrompt(pack), properties);
         return new OpenSpecChangeDraft(sessionId, markdown, "", "",
-                TextBounds.limit(markdown, properties.responseLimit() * properties.rawTextLimit()));
+                markdown);
+    }
+
+    private void validateZipUpload(String sessionId, MultipartFile file) {
+        String name = file.getOriginalFilename() == null ? "" : file.getOriginalFilename();
+        String contentType = file.getContentType() == null ? "" : file.getContentType().toLowerCase(Locale.ROOT);
+        if (!name.toLowerCase(Locale.ROOT).endsWith(".zip")) {
+            throw structuredFailure(sessionId, "ZIP_UNSUPPORTED_TYPE", "Uploaded ZIP filename must end with .zip.", name);
+        }
+        if (!contentType.isBlank()
+                && !contentType.equals("application/zip")
+                && !contentType.equals("application/x-zip-compressed")
+                && !contentType.equals("application/octet-stream")) {
+            throw structuredFailure(sessionId, "ZIP_UNSUPPORTED_TYPE", "Uploaded ZIP content type is not supported.", name);
+        }
+    }
+
+    private void validateSupportedSourceFile(String sessionId, String sourceFile) {
+        String normalized = sourceFile.toLowerCase(Locale.ROOT);
+        if (normalized.endsWith(".zip")
+                || normalized.endsWith(".log")
+                || normalized.endsWith(".txt")
+                || normalized.endsWith(".out")) {
+            return;
+        }
+        throw structuredFailure(sessionId, "UNSUPPORTED_LOG_FILE", "Only .log, .txt, .out, and nested .zip log sources are supported.", sourceFile);
+    }
+
+    private void enforceEventLimit(String sessionId, int eventCount, String sourceFile) {
+        if (eventCount > properties.maxEventsPerSession()) {
+            throw structuredFailure(sessionId, "LOG_EVENT_LIMIT", "Parsed log event count exceeds configured session limit.", sourceFile);
+        }
+    }
+
+    private void validateSearchRequest(LogSearchRequest request) {
+        if (request == null) {
+            return;
+        }
+        if (request.timeFrom() != null && request.timeTo() != null && request.timeFrom().isAfter(request.timeTo())) {
+            throw new IllegalArgumentException("Log search time range is invalid: timeFrom must be before timeTo");
+        }
+        if (request.keywords() != null && request.keywords().length() > properties.maxSearchKeywordLength()) {
+            throw new IllegalArgumentException("Log search keywords exceed configured length limit");
+        }
+        List<String> fragments = keywordLines(normalize(request.keywords(), false));
+        if (fragments.size() > properties.maxSearchFragments()) {
+            throw new IllegalArgumentException("Log search keywords exceed configured fragment limit");
+        }
+        if (request.levels() != null) {
+            Set<String> allowed = Set.of("TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL", "UNPARSED");
+            for (String level : request.levels()) {
+                if (level == null || !allowed.contains(level.toUpperCase(Locale.ROOT))) {
+                    throw new IllegalArgumentException("Log search level is invalid");
+                }
+            }
+        }
     }
 
     private String safeZipEntryName(String sessionId, String entryName) {

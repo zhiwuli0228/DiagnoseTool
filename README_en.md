@@ -47,8 +47,14 @@ Default URL: `http://localhost:8080/`
 
 ## LLM Configuration
 
-After startup, use the frontend `LLM configuration` panel to update `baseUrl`, `API key`, and `model`.
+After startup, use the frontend `LLM configuration` panel to update `baseUrl` and `model`.
 
 - Saved values take effect for the next diagnosis request without restarting the backend.
-- Fields not configured in the frontend continue to use backend `application*.yml` or environment variable defaults.
-- Configuration status never returns the full API key; it only returns a masked value.
+- Fields not configured in the frontend continue to use backend defaults.
+- API keys are not configurable from the frontend or YAML files. Set `LLM_API_KEY` in the runtime environment.
+
+## Unresolved Diagnosis Handoff
+
+If a diagnosis cannot localize the root cause, the report shows unresolved reasons, requested follow-up evidence, and a copy-only Codex/OpenCode prompt for codebase investigation.
+
+Submit the requested evidence and run diagnosis again, or copy the prompt into Codex/OpenCode. Thread Doctor does not execute the prompt automatically.

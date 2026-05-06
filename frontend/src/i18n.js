@@ -192,6 +192,28 @@ export const messages = {
   }
 };
 
+Object.assign(messages['zh-CN'].labels, {
+  localizationStatus: 'Localization status',
+  unresolvedDiagnosis: 'Unresolved diagnosis',
+  unresolvedReason: 'Reason'
+});
+
+Object.assign(messages['zh-CN'].buttons, {
+  continueEvidence: 'Provide more information',
+  copyCodebasePrompt: 'Copy codebase prompt'
+});
+
+Object.assign(messages['zh-CN'].tips, {
+  continueEvidence: 'Open evidence inputs so more key information can be submitted.',
+  copyCodebasePrompt: 'Copy the generated prompt for Codex or OpenCode. No tool is executed automatically.'
+});
+
+messages['zh-CN'].enums.localizationStatus = {
+  LOCALIZED: 'Localized',
+  UNRESOLVED: 'Unresolved',
+  NEEDS_MORE_EVIDENCE: 'Needs more evidence'
+};
+
 function resolvePath(resource, key) {
   return key.split('.').reduce((current, part) => current?.[part], resource);
 }

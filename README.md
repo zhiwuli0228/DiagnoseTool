@@ -1,41 +1,38 @@
 # Thread Doctor
 
-Spring Boot 后端与 Vite 前端的轻量化编译、部署、启动流程。
+Spring Boot backend with a Vite frontend for Java incident diagnosis.
 
-## 编译
+## Build
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\build.ps1
 ```
 
-输出产物：
+Outputs:
+- Backend jar: `target\thread-doctor-0.1.0-SNAPSHOT.jar`
+- Frontend assets: `frontend\dist\`
 
-- 后端 jar：`target\thread-doctor-0.1.0-SNAPSHOT.jar`
-- 前端静态资源：`frontend\dist\`
-
-后端 jar 是 Spring Boot 可执行 jar，可以直接运行：
+The backend jar is a Spring Boot executable jar:
 
 ```powershell
 java -jar .\target\thread-doctor-0.1.0-SNAPSHOT.jar
 ```
 
-## 部署已编译产物
-
-编译完成后，不重新编译，直接部署：
+## Deploy
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\deploy.ps1 -SkipBuild
 ```
 
-也可以显式指定产物路径：
+Deploy specific build outputs:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\deploy.ps1 -SkipBuild -BackendJar .\target\thread-doctor-0.1.0-SNAPSHOT.jar -FrontendDist .\frontend\dist
 ```
 
-默认部署目录：`deploy\`
+Deployment output: `deploy\`
 
-## 启动与停止
+## Run
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\deploy\start.ps1
@@ -43,12 +40,24 @@ powershell -ExecutionPolicy Bypass -File .\deploy\status.ps1
 powershell -ExecutionPolicy Bypass -File .\deploy\stop.ps1
 ```
 
-默认访问地址：`http://localhost:8080/`
+Default URL: `http://localhost:8080/`
 
-## 大模型配置
+## LLM Configuration
 
-启动后可在前端的 `LLM configuration` 面板修改 `baseUrl`、`API key`、`model`。
+The frontend `LLM configuration` panel can update `baseUrl` and `model`. API keys are not configurable from the frontend or YAML files; set `LLM_API_KEY` in the runtime environment.
 
-- 保存后对下一次诊断请求热生效，不需要重启后端。
-- 未在前端配置的字段会继续使用后端 `application*.yml` 或环境变量配置。
-- 前端读取配置状态时不会回显完整 API key，只显示脱敏值。
+## Unresolved Diagnosis Handoff
+
+If a diagnosis cannot localize the root cause, the report shows:
+
+- unresolved reasons
+- requested follow-up evidence
+- a copy-only Codex/OpenCode prompt for codebase investigation
+
+Submit the requested evidence and run diagnosis again, or copy the prompt into Codex/OpenCode. Thread Doctor does not execute the prompt automatically.
+
+## Security
+
+- Set `LLM_API_KEY` in production; API keys are not stored in `application*.yml` or frontend runtime configuration.
+- Request size, upload, search, evidence, metrics, and generated artifact limits are documented in [docs/security-hardening.md](docs/security-hardening.md).
+- Keep sensitive data masking enabled in production.

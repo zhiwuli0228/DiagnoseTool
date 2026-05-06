@@ -1,9 +1,23 @@
 {
   "type": "object",
-  "required": ["summary", "confidence"],
+  "required": ["summary", "confidence", "localizationStatus"],
   "properties": {
     "summary": { "type": "string" },
     "confidence": { "type": "string", "enum": ["LOW", "MEDIUM", "MEDIUM_HIGH", "HIGH"] },
+    "localizationStatus": { "type": "string", "enum": ["LOCALIZED", "UNRESOLVED", "NEEDS_MORE_EVIDENCE"] },
+    "unresolvedReasons": { "type": "array", "items": { "type": "string" } },
+    "followUpEvidenceRequests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string" },
+          "reason": { "type": "string" },
+          "expectedFormat": { "type": "string" },
+          "guidance": { "type": "string" }
+        }
+      }
+    },
     "candidateRootCauses": { "type": "array" },
     "evidenceChains": { "type": "array" },
     "recommendedActions": { "type": "array" },

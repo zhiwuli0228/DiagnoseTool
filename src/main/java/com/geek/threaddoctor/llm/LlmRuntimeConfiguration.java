@@ -1,8 +1,8 @@
 package com.geek.threaddoctor.llm;
 
-public record LlmRuntimeConfiguration(String baseUrl, String apiKey, String model) {
+public record LlmRuntimeConfiguration(String baseUrl, String model) {
     public boolean hasOverrides() {
-        return hasText(baseUrl) || hasText(apiKey) || hasText(model);
+        return hasText(baseUrl) || hasText(model);
     }
 
     static boolean hasText(String value) {

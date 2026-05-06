@@ -12,7 +12,7 @@ async function requestJson(path, options = {}, fetchImpl = fetch) {
     }
   });
   if (!response.ok) {
-    const message = await response.text();
+    const message = await errorMessage(response);
     throw new Error(message || `Request failed: ${response.status}`);
   }
   return response.json();
@@ -21,10 +21,23 @@ async function requestJson(path, options = {}, fetchImpl = fetch) {
 async function requestText(path, options = {}, fetchImpl = fetch) {
   const response = await fetchImpl(path, options);
   if (!response.ok) {
-    const message = await response.text();
+    const message = await errorMessage(response);
     throw new Error(message || `Request failed: ${response.status}`);
   }
   return response.text();
+}
+
+async function errorMessage(response) {
+  const text = await response.text();
+  if (!text) {
+    return '';
+  }
+  try {
+    const body = JSON.parse(text);
+    return body.message || body.error || text;
+  } catch {
+    return text;
+  }
 }
 
 export function createDiagnosisApi(fetchImpl = fetch) {

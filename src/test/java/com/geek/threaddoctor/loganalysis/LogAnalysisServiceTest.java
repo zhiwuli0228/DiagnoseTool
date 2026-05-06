@@ -82,6 +82,48 @@ class LogAnalysisServiceTest {
     }
 
     @Test
+    void rejectsUnsupportedZipUploadAndUnsafeSearchFilters() throws Exception {
+        LogAnalysisService service = service(properties(true, false, List.of(), 10, 100_000, 100_000, 2000, 8000));
+        LogAnalysisSession session = service.createSession();
+
+        assertThatThrownBy(() -> service.uploadZip(session.getId(),
+                new MockMultipartFile("file", "logs.txt", "text/plain", sampleLog().getBytes(StandardCharsets.UTF_8))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("ZIP_UNSUPPORTED_TYPE");
+
+        service.uploadZip(session.getId(), zipFile("app.log", sampleLog()));
+        assertThatThrownBy(() -> service.search(session.getId(), new LogSearchRequest(
+                LocalDateTime.parse("2026-05-06T10:00:00"),
+                LocalDateTime.parse("2026-05-05T10:00:00"),
+                List.of(), null, null, null, null, null, null, 10, true, true)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("time range");
+        assertThatThrownBy(() -> service.search(session.getId(), new LogSearchRequest(
+                null, null, List.of("BOGUS"), null, null, null, null, null, null, 10, true, true)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("level");
+    }
+
+    @Test
+    void rejectsZipEntrySizeAndEventLimits() throws Exception {
+        LogAnalysisService smallEntryService = service(new LogAnalysisProperties(true, false, List.of(),
+                10, 100_000, 100_000, 100.0, 2000, 8000, 5, 100, 100,
+                250_000, 3, 10, 2000, 20, true));
+        LogAnalysisSession smallEntrySession = smallEntryService.createSession();
+        assertThatThrownBy(() -> smallEntryService.uploadZip(smallEntrySession.getId(), zipFile("app.log", sampleLog())))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("ZIP_ENTRY_SIZE_LIMIT");
+
+        LogAnalysisService smallEventService = service(new LogAnalysisProperties(true, false, List.of(),
+                10, 100_000, 100_000, 100.0, 2000, 8000, 5, 100, 100,
+                1, 3, 20_000, 2000, 20, true));
+        LogAnalysisSession smallEventSession = smallEventService.createSession();
+        assertThatThrownBy(() -> smallEventService.uploadZip(smallEventSession.getId(), zipFile("app.log", sampleLog())))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("LOG_EVENT_LIMIT");
+    }
+
+    @Test
     void rejectsDirectoryOutsideAllowlistAndScansAllowedDirectory() throws Exception {
         Path allowed = Files.createDirectory(tempDir.resolve("allowed"));
         Path disallowed = Files.createDirectory(tempDir.resolve("disallowed"));
@@ -228,6 +270,24 @@ class LogAnalysisServiceTest {
         assertThat(service.evidencePackMarkdown(session.getId())).contains("Evidence Pack");
         assertThat(service.codexTask(session.getId()).markdown()).contains("JUnit 5 with Mockito");
         assertThat(service.openSpecChangeDraft(session.getId()).markdown()).contains("OpenSpec Change Draft");
+    }
+
+    @Test
+    void generatedArtifactsPreserveSensitiveDataMasking() throws Exception {
+        LogAnalysisService service = service(properties(true, false, List.of(), 10, 100_000, 100_000, 2000, 8000));
+        LogAnalysisSession session = service.createSession();
+        service.uploadZip(session.getId(), zipFile("secure.log", """
+                2026-05-05 10:00:00.000 ERROR [main] com.geek.demo.AuthService - failed apiKey=sk-secret-value token=abc123 email user@example.com
+                java.lang.IllegalStateException: failed
+                    at com.geek.demo.AuthService.login(AuthService.java:42)
+                """));
+
+        assertThat(service.evidencePackMarkdown(session.getId()))
+                .doesNotContain("sk-secret-value")
+                .doesNotContain("user@example.com")
+                .contains("[SECRET]");
+        assertThat(service.codexTask(session.getId()).markdown()).doesNotContain("sk-secret-value");
+        assertThat(service.openSpecChangeDraft(session.getId()).markdown()).doesNotContain("sk-secret-value");
     }
 
     @Test

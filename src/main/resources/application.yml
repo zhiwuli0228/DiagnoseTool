@@ -9,7 +9,6 @@ thread-doctor:
   llm:
     enabled: true
     base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
-    api-key: sk-79190796f84244289d5a2f3b28dbba5d
     model: qwen3.6-max-preview
     connect-timeout-ms: 10000
     read-timeout-ms: 60000
@@ -30,7 +29,26 @@ thread-doctor:
     sample-log-limit: 5
     response-limit: 200
     max-search-limit: 200
+    max-events-per-session: 250000
+    max-zip-nesting-depth: 3
+    max-entry-bytes: 20971520
+    max-search-keyword-length: 2000
+    max-search-fragments: 20
     masking-enabled: true
+  security:
+    local-secret:
+    id-max-length: 96
+    title-max-length: 120
+    description-max-length: 2000
+    source-max-length: 200
+    evidence-content-max-length: 200000
+    metadata-max-length: 20000
+    metrics-json-max-length: 100000
+    llm-base-url-max-length: 512
+    llm-api-key-max-length: 512
+    llm-model-max-length: 160
+    directory-path-max-length: 1024
+    artifact-output-max-length: 500000
   prompt:
     template-dir:
     cache-enabled: true

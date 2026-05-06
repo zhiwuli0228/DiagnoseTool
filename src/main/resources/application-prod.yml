@@ -15,7 +15,6 @@ thread-doctor:
     masking-enabled: ${LOG_ANALYSIS_MASKING_ENABLED:true}
   llm:
     base-url: ${LLM_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
-    api-key: ${LLM_API_KEY}
     model: ${LLM_MODEL:qwen3.6-max-preview}
     proxy:
       enabled: ${LLM_PROXY_ENABLED:false}

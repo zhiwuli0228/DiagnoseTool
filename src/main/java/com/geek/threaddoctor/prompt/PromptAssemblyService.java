@@ -68,6 +68,10 @@ public class PromptAssemblyService {
                 "suspectedCodeAreas", suspectedBullets(evidencePack.suspectedCodeAreas())));
     }
 
+    public String buildDiagnosisCodebaseInvestigationPrompt(Map<String, Object> variables) {
+        return render(PromptTemplateType.DIAGNOSIS_CODEBASE_INVESTIGATION, variables);
+    }
+
     public String buildOpenSpecChangeDraftPrompt(EvidencePack evidencePack) {
         String suspected = suspectedBullets(evidencePack.suspectedCodeAreas());
         String tasks = """

@@ -15,7 +15,7 @@ The system SHALL provide cache-backed log analysis sessions for transient log in
 - **THEN** the system returns session metadata, source summaries, processing status, and structured errors if any exist
 
 ### Requirement: Log source ingestion
-The system SHALL ingest log sources from ZIP uploads, browser-selected local directory uploads, and configured local directory scans while enforcing production safety limits.
+The system SHALL ingest log sources from ZIP uploads, browser-selected local directory uploads, and configured local directory scans while enforcing production safety limits, content-type constraints, path safety, and decompression boundaries.
 
 #### Scenario: Upload a valid ZIP source
 - **WHEN** a client uploads a ZIP archive within configured limits
@@ -30,8 +30,8 @@ The system SHALL ingest log sources from ZIP uploads, browser-selected local dir
 - **THEN** the system rejects the source and returns a structured ZIP slip error
 
 #### Scenario: Reject unsafe archive limits
-- **WHEN** a ZIP archive exceeds configured file count, size, or decompression ratio limits
-- **THEN** the system rejects the source and records a structured limit error
+- **WHEN** a ZIP archive exceeds configured file count, size, compression ratio, nesting depth, per-entry size, or supported content-type limits
+- **THEN** the system rejects the source and records a structured limit error without parsing additional entries
 
 #### Scenario: Scan an allowed local directory
 - **WHEN** directory scan is enabled and the requested path is under a configured allowlist root
@@ -65,18 +65,22 @@ The system SHALL normalize ingested log content into `LogEvent` records containi
 - **THEN** the system records an `UNPARSED` event with bounded raw text and source location
 
 ### Requirement: Sensitive data masking and output limits
-The system SHALL mask sensitive data and enforce bounded raw text, stack trace, sample log, and response payload sizes.
+The system SHALL mask sensitive data and enforce bounded raw text, stack trace, sample log, search result, generated artifact, and response payload sizes.
 
 #### Scenario: Mask sensitive values
-- **WHEN** parsed logs or generated outputs contain IPs, emails, phone-like values, passwords, tokens, secrets, keys, or similar credential fields
+- **WHEN** parsed logs or generated outputs contain IPs, emails, phone-like values, passwords, tokens, secrets, keys, API keys, authorization headers, cookies, or similar credential fields
 - **THEN** the system replaces those values with stable masked placeholders before returning or storing derived output
 
 #### Scenario: Bound raw excerpts
 - **WHEN** a log event or evidence item contains long raw text or stack traces
 - **THEN** the system truncates the field according to configured output caps and preserves a marker that truncation occurred
 
+#### Scenario: Prevent sensitive generated artifacts
+- **WHEN** the system generates Evidence Pack Markdown, Codex task Markdown, OpenSpec draft Markdown, diagnosis snippets, or frontend-visible log search results
+- **THEN** the generated output MUST preserve masking and MUST NOT include plaintext secrets detected from uploaded logs or frontend inputs
+
 ### Requirement: Log event search
-The system SHALL provide bounded search over parsed log events using time range, levels, multiple keywords, ignore-case option, duplicate compression option, trace ID, thread name, logger name, exception type, source file, limit, and stack trace inclusion filters.
+The system SHALL provide bounded search over parsed log events using time range, levels, multiple keywords, ignore-case option, duplicate compression option, trace ID, thread name, logger name, exception type, source file, limit, and stack trace inclusion filters while validating every search filter.
 
 #### Scenario: Filter log events
 - **WHEN** a client searches with one or more supported filters
@@ -105,6 +109,10 @@ The system SHALL provide bounded search over parsed log events using time range,
 #### Scenario: Exclude stack traces from search results
 - **WHEN** a client sets `includeStackTrace` to false
 - **THEN** the system omits stack trace bodies from returned event rows while keeping match metadata
+
+#### Scenario: Reject unsafe search filters
+- **WHEN** a client submits excessive keyword length, excessive line fragments, invalid time range, invalid levels, invalid limit, or oversized filter values
+- **THEN** the system rejects the search with a structured validation error before scanning cached events
 
 ### Requirement: Exception clustering
 The system SHALL cluster similar log events by fingerprints derived from exception type, normalized message, and top stack frames.

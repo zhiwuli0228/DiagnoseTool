@@ -43,13 +43,13 @@ class LlmConfigurationControllerTest {
     void savesAndClearsFrontendConfiguration() throws Exception {
         mockMvc.perform(put("/api/llm/configuration")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"baseUrl\":\"https://frontend.test/v1\",\"apiKey\":\"frontend-secret-key\",\"model\":\"frontend-model\"}"))
+                        .content("{\"baseUrl\":\"https://frontend.test/v1\",\"model\":\"frontend-model\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.activeSource").value("frontend"))
                 .andExpect(jsonPath("$.baseUrl.source").value("frontend"))
                 .andExpect(jsonPath("$.model.value").value("frontend-model"))
-                .andExpect(jsonPath("$.apiKey.value").value("fron****-key"))
-                .andExpect(content().string(not(containsString("frontend-secret-key"))));
+                .andExpect(jsonPath("$.apiKey.source").value("backend"))
+                .andExpect(jsonPath("$.apiKey.value").value("back****-key"));
 
         mockMvc.perform(delete("/api/llm/configuration"))
                 .andExpect(status().isOk())
@@ -64,5 +64,15 @@ class LlmConfigurationControllerTest {
                         .content("{\"baseUrl\":\"ftp://invalid.test\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value(containsString("baseUrl")));
+    }
+
+    @Test
+    void rejectsFrontendApiKeyOverride() throws Exception {
+        mockMvc.perform(put("/api/llm/configuration")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"apiKey\":\"frontend-secret-key\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(containsString("LLM_API_KEY")))
+                .andExpect(content().string(not(containsString("frontend-secret-key"))));
     }
 }

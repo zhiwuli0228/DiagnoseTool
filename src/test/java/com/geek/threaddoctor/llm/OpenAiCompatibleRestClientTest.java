@@ -37,7 +37,7 @@ class OpenAiCompatibleRestClientTest {
         LlmRuntimeConfigurationService configurationService =
                 new LlmRuntimeConfigurationService("https://example.test", "test-key", "test-model");
         OpenAiCompatibleRestClient client = new OpenAiCompatibleRestClient(
-                "https://example.test", "test-key", "test-model", 1000, 2000, false, "", 0,
+                "https://example.test", "test-model", 1000, 2000, false, "", 0,
                 configurationService, new ObjectMapper());
 
         String content = client.buildUserContent(new LlmRequest("diagnose", Map.of("detections", "redis"), 0.2, 100));
@@ -52,7 +52,7 @@ class OpenAiCompatibleRestClientTest {
                 new LlmRuntimeConfigurationService("https://example.test", "test-key", "backend-model");
         configurationService.save(new LlmConfigurationUpdateRequest(null, null, "frontend-model"));
         OpenAiCompatibleRestClient client = new OpenAiCompatibleRestClient(
-                "https://example.test", "test-key", "backend-model", 1000, 2000, false, "", 0,
+                "https://example.test", "backend-model", 1000, 2000, false, "", 0,
                 configurationService, new ObjectMapper());
 
         Map<String, Object> body = client.buildRequestBody(

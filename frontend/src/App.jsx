@@ -133,7 +133,7 @@ export function ConversationalDiagnosisApp({ apiClient = diagnosisApi, config = 
   const [state, dispatch] = useReducer(diagnosisReducer, initialWorkflowState);
   const [copyStatus, setCopyStatus] = useState('');
   const [expandedEvidenceInputs, setExpandedEvidenceInputs] = useState({ log: false, jstack: false });
-  const [llmDraft, setLlmDraft] = useState({ baseUrl: '', apiKey: '', model: '' });
+  const [llmDraft, setLlmDraft] = useState({ baseUrl: '', model: '' });
   const [llmStatus, setLlmStatus] = useState(null);
   const [llmMessage, setLlmMessage] = useState('');
   const lastStartedAt = useRef({});
@@ -178,7 +178,6 @@ export function ConversationalDiagnosisApp({ apiClient = diagnosisApi, config = 
           setLlmStatus(status);
           setLlmDraft({
             baseUrl: status?.baseUrl?.configuredByFrontend ? status.baseUrl.value || '' : '',
-            apiKey: '',
             model: status?.model?.configuredByFrontend ? status.model.value || '' : ''
           });
         }
@@ -248,11 +247,9 @@ export function ConversationalDiagnosisApp({ apiClient = diagnosisApi, config = 
     try {
       const status = await apiClient.saveLlmConfiguration({
         baseUrl: emptyToNull(llmDraft.baseUrl),
-        apiKey: emptyToNull(llmDraft.apiKey),
         model: emptyToNull(llmDraft.model)
       });
       setLlmStatus(status);
-      setLlmDraft((current) => ({ ...current, apiKey: '' }));
       setLlmMessage('LLM configuration saved. It is active for the next diagnosis request.');
     } catch (error) {
       setLlmMessage(error.message || 'Failed to save LLM configuration.');
@@ -264,7 +261,7 @@ export function ConversationalDiagnosisApp({ apiClient = diagnosisApi, config = 
     try {
       const status = await apiClient.clearLlmConfiguration();
       setLlmStatus(status);
-      setLlmDraft({ baseUrl: '', apiKey: '', model: '' });
+      setLlmDraft({ baseUrl: '', model: '' });
       setLlmMessage('LLM configuration cleared. Backend defaults are active.');
     } catch (error) {
       setLlmMessage(error.message || 'Failed to clear LLM configuration.');
@@ -417,6 +414,18 @@ export function ConversationalDiagnosisApp({ apiClient = diagnosisApi, config = 
     setCopyStatus(i18n.t('conversation.copied'));
   }
 
+  async function copyCodebasePrompt() {
+    const markdown = state.report?.codebasePrompt?.markdown || '';
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(markdown);
+    }
+    setCopyStatus(i18n.t('conversation.copied'));
+  }
+
+  function continueWithMoreEvidence() {
+    setExpandedEvidenceInputs({ log: true, jstack: true });
+  }
+
   function downloadIncidentCard() {
     const markdown = state.incidentCard?.markdown || '';
     const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
@@ -433,6 +442,7 @@ export function ConversationalDiagnosisApp({ apiClient = diagnosisApi, config = 
   const isBusy = state.runningTasks.length > 0;
   const hasEvidenceDraft = Boolean(state.evidenceDraft.logContent?.trim() || state.evidenceDraft.jstackContent?.trim());
   const showDiagnosisProgress = state.stage === WorkflowStage.DIAGNOSING || state.diagnosisProgress.status === 'FAILED';
+  const reportNeedsHandoff = state.report && state.report.localizationStatus && state.report.localizationStatus !== 'LOCALIZED';
 
   return (
     <main className="app-shell">
@@ -462,7 +472,6 @@ export function ConversationalDiagnosisApp({ apiClient = diagnosisApi, config = 
             <div className="panel-title"><Settings size={18} /><h2>LLM configuration</h2></div>
             <form className="llm-settings-form" onSubmit={saveLlmConfiguration}>
               <label>baseUrl<input value={llmDraft.baseUrl} placeholder={llmStatus?.baseUrl?.value || 'https://example.com/v1'} onChange={(event) => updateLlmDraft('baseUrl', event.target.value)} /></label>
-              <label>API key<input type="password" value={llmDraft.apiKey} placeholder={llmStatus?.apiKey?.value || 'Backend default'} onChange={(event) => updateLlmDraft('apiKey', event.target.value)} /></label>
               <label>model<input value={llmDraft.model} placeholder={llmStatus?.model?.value || 'Backend default'} onChange={(event) => updateLlmDraft('model', event.target.value)} /></label>
               <div className="llm-settings-actions">
                 <button type="submit" disabled={isBusy}>Save LLM configuration</button>
@@ -573,7 +582,7 @@ export function ConversationalDiagnosisApp({ apiClient = diagnosisApi, config = 
             <div className="panel-title"><ShieldCheck size={18} /><h2>{i18n.t('app.diagnosis')}</h2></div>
             <button onClick={runDiagnosis} disabled={!hasSession || isBusy} title={i18n.t('tips.runDiagnosis')}><Stethoscope size={16} /> {i18n.t('buttons.runDiagnosis')}</button>
             {showDiagnosisProgress && <DiagnosisProgressBar progress={state.diagnosisProgress} />}
-            {state.report && <article className="result-block"><h3>{i18n.t('app.report')}</h3><p>{state.report.summary}</p><dl><dt>{i18n.t('labels.confidence')}</dt><dd>{i18n.label('confidence', state.report.confidence)}</dd></dl><pre>{state.report.reportJson || JSON.stringify(state.report, null, 2)}</pre></article>}
+            {state.report && <article className="result-block"><h3>{i18n.t('app.report')}</h3><p>{state.report.summary}</p><dl><dt>{i18n.t('labels.confidence')}</dt><dd>{i18n.label('confidence', state.report.confidence)}</dd><dt>{i18n.t('labels.localizationStatus')}</dt><dd>{i18n.label('localizationStatus', state.report.localizationStatus)}</dd></dl>{reportNeedsHandoff && <div className="unresolved-diagnosis"><h3>{i18n.t('labels.unresolvedDiagnosis')}</h3>{state.report.unresolvedReasons?.length > 0 && <div className="compact-list">{state.report.unresolvedReasons.map((reason) => <div key={reason}><strong>{i18n.t('labels.unresolvedReason')}</strong><span>{reason}</span></div>)}</div>}{state.report.followUpEvidenceRequests?.length > 0 && <div className="compact-list">{state.report.followUpEvidenceRequests.map((request) => <div key={`${request.title}-${request.reason}`}><strong>{request.title}</strong><span>{request.reason}</span><span>{request.expectedFormat}</span><span>{request.guidance}</span></div>)}</div>}<div className="document-actions"><button type="button" onClick={continueWithMoreEvidence} title={i18n.t('tips.continueEvidence')}><FileText size={16} /> {i18n.t('buttons.continueEvidence')}</button>{state.report.codebasePrompt?.markdown && <button type="button" onClick={copyCodebasePrompt} title={i18n.t('tips.copyCodebasePrompt')}><Copy size={16} /> {i18n.t('buttons.copyCodebasePrompt')}</button>}</div>{copyStatus && <p className="execution-result">{copyStatus}</p>}{state.report.codebasePrompt?.documentOnlyWarning && <p className="progress-warning">{state.report.codebasePrompt.documentOnlyWarning}</p>}{state.report.codebasePrompt?.markdown && <pre>{state.report.codebasePrompt.markdown}</pre>}</div>}<pre>{state.report.reportJson || JSON.stringify(state.report, null, 2)}</pre></article>}
           </section>
 
           <section className="panel">

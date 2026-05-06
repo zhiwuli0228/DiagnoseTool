@@ -9,6 +9,8 @@ public enum PromptTemplateType {
             "Diagnosis JSON response schema"),
     CODEX_INVESTIGATION_TASK("codex-investigation-task", "prompts/codex-task/codex-investigation-task-template.md", PromptContentType.MARKDOWN,
             "Codex investigation task template"),
+    DIAGNOSIS_CODEBASE_INVESTIGATION("diagnosis-codebase-investigation", "prompts/codex-task/diagnosis-codebase-investigation-template.md", PromptContentType.MARKDOWN,
+            "Diagnosis handoff prompt for codebase investigation"),
     OPENSPEC_CHANGE_DRAFT("openspec-change-draft", "prompts/openspec/openspec-change-draft-template.md", PromptContentType.MARKDOWN,
             "OpenSpec change draft template"),
     INCIDENT_REVIEW("incident-review", "prompts/review/incident-review-template.md", PromptContentType.MARKDOWN,

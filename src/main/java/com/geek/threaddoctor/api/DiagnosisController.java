@@ -4,14 +4,17 @@ import com.geek.threaddoctor.diagnosis.DiagnosisProgress;
 import com.geek.threaddoctor.diagnosis.DiagnosisProgressService;
 import com.geek.threaddoctor.diagnosis.DiagnosisReport;
 import com.geek.threaddoctor.diagnosis.DiagnosisReportService;
+import jakarta.validation.constraints.Pattern;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.validation.annotation.Validated;
 
 @RestController
 @RequestMapping("/api/incidents/{sessionId}")
+@Validated
 public class DiagnosisController {
     private final DiagnosisReportService reportService;
     private final DiagnosisProgressService progressService;
@@ -22,17 +25,17 @@ public class DiagnosisController {
     }
 
     @PostMapping("/diagnose")
-    DiagnosisReport diagnose(@PathVariable String sessionId) {
+    DiagnosisReport diagnose(@PathVariable @Pattern(regexp = "INC-[A-Za-z0-9-]{1,80}") String sessionId) {
         return reportService.diagnose(sessionId);
     }
 
     @GetMapping("/report")
-    DiagnosisReport latest(@PathVariable String sessionId) {
+    DiagnosisReport latest(@PathVariable @Pattern(regexp = "INC-[A-Za-z0-9-]{1,80}") String sessionId) {
         return reportService.latest(sessionId);
     }
 
     @GetMapping("/diagnosis-progress")
-    DiagnosisProgress progress(@PathVariable String sessionId) {
+    DiagnosisProgress progress(@PathVariable @Pattern(regexp = "INC-[A-Za-z0-9-]{1,80}") String sessionId) {
         return progressService.current(sessionId);
     }
 }

@@ -56,6 +56,17 @@ describe('diagnosisApi', () => {
     await expect(api.runDiagnosis('INC-1')).rejects.toThrow('bad request');
   });
 
+  it('uses sanitized backend validation message when request fails with json error', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      text: () => Promise.resolve(JSON.stringify({ message: 'apiKey=[SECRET]' }))
+    });
+    const api = createDiagnosisApi(fetchImpl);
+
+    await expect(api.runDiagnosis('INC-1')).rejects.toThrow('apiKey=[SECRET]');
+  });
+
   it('maps log analysis endpoints and zip upload form data', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(okJson({ id: 'LOG-1' }));
     const api = createDiagnosisApi(fetchImpl);
@@ -108,7 +119,7 @@ describe('diagnosisApi', () => {
     const api = createDiagnosisApi(fetchImpl);
 
     await api.getLlmConfiguration();
-    await api.saveLlmConfiguration({ baseUrl: 'https://llm.test/v1', apiKey: 'secret', model: 'qwen' });
+    await api.saveLlmConfiguration({ baseUrl: 'https://llm.test/v1', model: 'qwen' });
     await api.clearLlmConfiguration();
 
     expect(fetchImpl.mock.calls.map((call) => [call[0], call[1].method])).toEqual([
@@ -118,7 +129,6 @@ describe('diagnosisApi', () => {
     ]);
     expect(fetchImpl.mock.calls[1][1].body).toBe(JSON.stringify({
       baseUrl: 'https://llm.test/v1',
-      apiKey: 'secret',
       model: 'qwen'
     }));
   });

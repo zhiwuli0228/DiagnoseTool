@@ -30,7 +30,6 @@ public class OpenAiCompatibleRestClient implements LlmClient {
 
     public OpenAiCompatibleRestClient(
             @Value("${thread-doctor.llm.base-url}") String baseUrl,
-            @Value("${thread-doctor.llm.api-key}") String apiKey,
             @Value("${thread-doctor.llm.model}") String model,
             @Value("${thread-doctor.llm.connect-timeout-ms:10000}") int connectTimeoutMs,
             @Value("${thread-doctor.llm.read-timeout-ms:60000}") int readTimeoutMs,

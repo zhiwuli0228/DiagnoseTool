@@ -34,26 +34,27 @@ class LlmRuntimeConfigurationServiceTest {
     }
 
     @Test
-    void supportsFullFrontendOverrideAndMasksApiKey() {
+    void supportsFrontendBaseUrlAndModelOverrideButKeepsApiKeyFromEnvironment() {
         LlmRuntimeConfigurationService service =
                 new LlmRuntimeConfigurationService("https://backend.test/v1", "backend-key", "backend-model");
 
         LlmConfigurationStatus status = service.save(new LlmConfigurationUpdateRequest(
-                "https://frontend.test/v1", "frontend-secret-key", "frontend-model"));
+                "https://frontend.test/v1", null, "frontend-model"));
 
         EffectiveLlmConfiguration effective = service.effectiveConfiguration();
         assertThat(effective.baseUrl()).isEqualTo("https://frontend.test/v1");
-        assertThat(effective.apiKey()).isEqualTo("frontend-secret-key");
+        assertThat(effective.apiKey()).isEqualTo("backend-key");
         assertThat(effective.model()).isEqualTo("frontend-model");
-        assertThat(status.apiKey().value()).isEqualTo("fron****-key");
-        assertThat(status.apiKey().configuredByFrontend()).isTrue();
+        assertThat(status.apiKey().value()).isEqualTo("back****-key");
+        assertThat(status.apiKey().configuredByFrontend()).isFalse();
+        assertThat(service.storedFrontendOverrides().hasOverrides()).isTrue();
     }
 
     @Test
     void clearRestoresBackendDefaults() {
         LlmRuntimeConfigurationService service =
                 new LlmRuntimeConfigurationService("https://backend.test/v1", "backend-key", "backend-model");
-        service.save(new LlmConfigurationUpdateRequest("https://frontend.test/v1", "frontend-key", "frontend-model"));
+        service.save(new LlmConfigurationUpdateRequest("https://frontend.test/v1", null, "frontend-model"));
 
         service.clear();
 
@@ -69,8 +70,8 @@ class LlmRuntimeConfigurationServiceTest {
         assertThatThrownBy(() -> service.save(new LlmConfigurationUpdateRequest("ftp://bad.test", null, null)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("baseUrl");
-        assertThatThrownBy(() -> service.save(new LlmConfigurationUpdateRequest(null, " ", null)))
+        assertThatThrownBy(() -> service.save(new LlmConfigurationUpdateRequest(null, "frontend-key", null)))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("api-key");
+                .hasMessageContaining("LLM_API_KEY");
     }
 }
