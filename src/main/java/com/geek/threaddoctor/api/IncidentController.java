@@ -1,3 +1,7 @@
+/**
+ * Copyright &copy; 2026-2026 zhiwu Technologies Co., Ltd. All rights reserved.
+ */
+
 package com.geek.threaddoctor.api;
 
 import com.geek.threaddoctor.common.SeverityLevel;
@@ -20,6 +24,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * 封装业务逻辑和数据处理能力。
+ *
+ * @author zhiwuli
+ * @since 2026-05-07
+ */
 @RestController
 @RequestMapping("/api/incidents")
 @Validated
@@ -27,6 +37,12 @@ public class IncidentController {
     private final IncidentSessionService incidentSessionService;
     private final EvidenceService evidenceService;
 
+    /**
+     * 执行业务操作。
+     *
+     * @param incidentSessionService 业务服务依赖
+     * @param evidenceService 业务服务依赖
+     */
     public IncidentController(IncidentSessionService incidentSessionService, EvidenceService evidenceService) {
         this.incidentSessionService = incidentSessionService;
         this.evidenceService = evidenceService;
@@ -50,6 +66,12 @@ public class IncidentController {
         return evidenceService.upload(sessionId, request.type(), request.source(), request.content(), request.metadataJson());
     }
 
+    /**
+     * 承载不可变业务数据。
+     *
+     * @author zhiwuli
+     * @since 2026-05-07
+     */
     public record CreateIncidentRequest(
             @NotBlank @Size(max = 120) String title,
             @Size(max = 2000) String description,
@@ -61,6 +83,12 @@ public class IncidentController {
         }
     }
 
+    /**
+     * 承载不可变业务数据。
+     *
+     * @author zhiwuli
+     * @since 2026-05-07
+     */
     public record UploadEvidenceRequest(
             @NotNull EvidenceType type,
             @Size(max = 200) String source,
@@ -68,6 +96,12 @@ public class IncidentController {
             @Size(max = 20000) String metadataJson) {
     }
 
+    /**
+     * 承载不可变业务数据。
+     *
+     * @author zhiwuli
+     * @since 2026-05-07
+     */
     public record IncidentDetailResponse(IncidentSession session, List<Evidence> evidences) {
     }
 }

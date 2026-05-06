@@ -1,7 +1,17 @@
+/**
+ * Copyright &copy; 2026-2026 zhiwu Technologies Co., Ltd. All rights reserved.
+ */
+
 package com.geek.threaddoctor.security;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+/**
+ * 承载不可变业务数据。
+ *
+ * @author zhiwuli
+ * @since 2026-05-07
+ */
 @ConfigurationProperties(prefix = "thread-doctor.security")
 public record SecurityLimitsProperties(
         int idMaxLength,

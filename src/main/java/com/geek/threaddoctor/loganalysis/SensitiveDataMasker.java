@@ -1,8 +1,18 @@
+/**
+ * Copyright &copy; 2026-2026 zhiwu Technologies Co., Ltd. All rights reserved.
+ */
+
 package com.geek.threaddoctor.loganalysis;
 
 import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
 
+/**
+ * 封装业务逻辑和数据处理能力。
+ *
+ * @author zhiwuli
+ * @since 2026-05-07
+ */
 @Component
 public class SensitiveDataMasker {
     private static final Pattern EMAIL = Pattern.compile("\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b");
@@ -11,6 +21,13 @@ public class SensitiveDataMasker {
     private static final Pattern SECRET_FIELD = Pattern.compile("(?i)\\b(password|passwd|pwd|token|secret|api[-_]?key|access[-_]?key|authorization|cookie|set-cookie)\\s*[:=]\\s*([^\\s,;]+)");
     private static final Pattern BEARER_TOKEN = Pattern.compile("(?i)bearer\\s+[A-Za-z0-9._~+/=-]+");
 
+    /**
+     * 掩码敏感数据。
+     *
+     * @param text 待处理文本
+     * @param properties 配置属性
+     * @return 掩码后的文本
+     */
     public String mask(String text, LogAnalysisProperties properties) {
         if (text == null || text.isBlank() || !properties.maskingEnabled()) {
             return text;

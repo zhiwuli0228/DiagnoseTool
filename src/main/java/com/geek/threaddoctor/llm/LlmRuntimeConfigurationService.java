@@ -1,3 +1,7 @@
+/**
+ * Copyright &copy; 2026-2026 zhiwu Technologies Co., Ltd. All rights reserved.
+ */
+
 package com.geek.threaddoctor.llm;
 
 import java.net.URI;
@@ -6,6 +10,12 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+/**
+ * 封装业务逻辑和数据处理能力。
+ *
+ * @author zhiwuli
+ * @since 2026-05-07
+ */
 @Service
 public class LlmRuntimeConfigurationService {
     private final EffectiveLlmConfiguration backendDefaults;
@@ -25,6 +35,11 @@ public class LlmRuntimeConfigurationService {
         }
     }
 
+    /**
+     * 获取状态。
+     *
+     * @return 配置状态
+     */
     public LlmConfigurationStatus status() {
         LlmRuntimeConfiguration overrides = frontendOverrides.get();
         EffectiveLlmConfiguration effective = effectiveConfiguration();
@@ -35,6 +50,12 @@ public class LlmRuntimeConfigurationService {
                 fieldStatus(effective.model(), overrides.model(), false));
     }
 
+    /**
+     * 保存业务记录。
+     *
+     * @param request 请求数据
+     * @return 业务处理结果
+     */
     public LlmConfigurationStatus save(LlmConfigurationUpdateRequest request) {
         if (request == null) {
             throw new IllegalArgumentException("LLM configuration request is required");
@@ -50,11 +71,21 @@ public class LlmRuntimeConfigurationService {
         return status();
     }
 
+    /**
+     * 清除运行时配置。
+     *
+     * @return 清除后的配置状态
+     */
     public LlmConfigurationStatus clear() {
         frontendOverrides.set(new LlmRuntimeConfiguration(null, null));
         return status();
     }
 
+    /**
+     * 获取生效配置。
+     *
+     * @return 生效配置
+     */
     public EffectiveLlmConfiguration effectiveConfiguration() {
         LlmRuntimeConfiguration overrides = frontendOverrides.get();
         EffectiveLlmConfiguration effective = new EffectiveLlmConfiguration(

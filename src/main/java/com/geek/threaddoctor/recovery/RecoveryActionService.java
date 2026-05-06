@@ -1,3 +1,7 @@
+/**
+ * Copyright &copy; 2026-2026 zhiwu Technologies Co., Ltd. All rights reserved.
+ */
+
 package com.geek.threaddoctor.recovery;
 
 import com.geek.threaddoctor.common.ResourceNotFoundException;
@@ -8,16 +12,34 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 
+/**
+ * 封装业务逻辑和数据处理能力。
+ *
+ * @author zhiwuli
+ * @since 2026-05-07
+ */
 @Service
 public class RecoveryActionService {
     private final RecoveryActionRepository repository;
     private final DiagnosisReportService diagnosisReportService;
 
+    /**
+     * 执行业务操作。
+     *
+     * @param repository 仓储依赖
+     * @param diagnosisReportService 业务服务依赖
+     */
     public RecoveryActionService(RecoveryActionRepository repository, DiagnosisReportService diagnosisReportService) {
         this.repository = repository;
         this.diagnosisReportService = diagnosisReportService;
     }
 
+    /**
+     * 生成业务内容。
+     *
+     * @param sessionId 会话标识
+     * @return 生成的业务内容
+     */
     public List<RecoveryAction> generate(String sessionId) {
         DiagnosisReport report = diagnosisReportService.latest(sessionId);
         // 恢复建议只缓存在当前会话，所有执行都保持模拟语义。
@@ -25,6 +47,13 @@ public class RecoveryActionService {
         return repository.saveAll(actions);
     }
 
+    /**
+     * 模拟执行恢复动作。
+     *
+     * @param sessionId 会话标识
+     * @param actionId 动作标识
+     * @return 模拟后的恢复动作
+     */
     public RecoveryAction simulate(String sessionId, String actionId) {
         RecoveryAction action = repository.findById(actionId)
                 .filter(a -> a.getSessionId().equals(sessionId))
@@ -33,6 +62,12 @@ public class RecoveryActionService {
         return repository.save(action);
     }
 
+    /**
+     * 列出业务记录。
+     *
+     * @param sessionId 会话标识
+     * @return 业务记录集合
+     */
     public List<RecoveryAction> list(String sessionId) {
         return repository.findBySessionId(sessionId);
     }

@@ -1,3 +1,7 @@
+/**
+ * Copyright &copy; 2026-2026 zhiwu Technologies Co., Ltd. All rights reserved.
+ */
+
 package com.geek.threaddoctor.diagnosis;
 
 import com.geek.threaddoctor.common.ConfidenceLevel;
@@ -23,6 +27,12 @@ import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 
+/**
+ * 封装业务逻辑和数据处理能力。
+ *
+ * @author zhiwuli
+ * @since 2026-05-07
+ */
 @Service
 public class DiagnosisReportService {
     private final DiagnosisContextBuilder contextBuilder;
@@ -35,6 +45,18 @@ public class DiagnosisReportService {
     private final PromptAssemblyService promptAssemblyService;
     private final SensitiveValueSanitizer sensitiveValueSanitizer = new SensitiveValueSanitizer();
 
+    /**
+     * 执行业务操作。
+     *
+     * @param contextBuilder 业务参数
+     * @param detectionService 业务服务依赖
+     * @param repository 仓储依赖
+     * @param incidentSessionService 业务服务依赖
+     * @param llmClient 业务参数
+     * @param objectMapper 数据映射组件
+     * @param progressService 业务服务依赖
+     * @param promptAssemblyService 业务服务依赖
+     */
     public DiagnosisReportService(DiagnosisContextBuilder contextBuilder, FaultPatternDetectionService detectionService,
                                   DiagnosisReportRepository repository, IncidentSessionService incidentSessionService,
                                   LlmClient llmClient, ObjectMapper objectMapper,
@@ -50,6 +72,12 @@ public class DiagnosisReportService {
         this.promptAssemblyService = promptAssemblyService;
     }
 
+    /**
+     * 执行事件诊断。
+     *
+     * @param sessionId 会话标识
+     * @return 诊断报告
+     */
     public DiagnosisReport diagnose(String sessionId) {
         progressService.reset(sessionId);
         try {
@@ -90,6 +118,12 @@ public class DiagnosisReportService {
         }
     }
 
+    /**
+     * 获取最新记录。
+     *
+     * @param sessionId 会话标识
+     * @return 最新记录
+     */
     public DiagnosisReport latest(String sessionId) {
         return repository.findTopBySessionIdOrderByGeneratedAtDesc(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Diagnosis report not found for session: " + sessionId));

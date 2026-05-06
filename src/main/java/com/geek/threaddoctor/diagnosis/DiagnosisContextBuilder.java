@@ -1,3 +1,7 @@
+/**
+ * Copyright &copy; 2026-2026 zhiwu Technologies Co., Ltd. All rights reserved.
+ */
+
 package com.geek.threaddoctor.diagnosis;
 
 import com.geek.threaddoctor.evidence.Evidence;
@@ -19,12 +23,26 @@ import org.springframework.stereotype.Service;
 
 @Service
 // 将一次会话下的散落证据整理成规则检测可直接消费的诊断上下文。
+/**
+ * 封装业务逻辑和数据处理能力。
+ *
+ * @author zhiwuli
+ * @since 2026-05-07
+ */
 public class DiagnosisContextBuilder {
     private final IncidentSessionService incidentSessionService;
     private final EvidenceService evidenceService;
     private final JstackAnalyzer jstackAnalyzer;
     private final ObjectMapper objectMapper;
 
+    /**
+     * 执行业务操作。
+     *
+     * @param incidentSessionService 业务服务依赖
+     * @param evidenceService 业务服务依赖
+     * @param jstackAnalyzer 业务参数
+     * @param objectMapper 数据映射组件
+     */
     public DiagnosisContextBuilder(IncidentSessionService incidentSessionService, EvidenceService evidenceService, JstackAnalyzer jstackAnalyzer, ObjectMapper objectMapper) {
         this.incidentSessionService = incidentSessionService;
         this.evidenceService = evidenceService;
@@ -32,6 +50,12 @@ public class DiagnosisContextBuilder {
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * 构建诊断上下文。
+     *
+     * @param sessionId 会话标识
+     * @return 诊断上下文
+     */
     public DiagnosisContext build(String sessionId) {
         IncidentSession session = incidentSessionService.getRequired(sessionId);
         List<Evidence> evidences = evidenceService.listBySession(sessionId);

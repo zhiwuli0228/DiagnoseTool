@@ -1,3 +1,7 @@
+/**
+ * Copyright &copy; 2026-2026 zhiwu Technologies Co., Ltd. All rights reserved.
+ */
+
 package com.geek.threaddoctor.jstack;
 
 import java.util.ArrayList;
@@ -14,6 +18,12 @@ import org.springframework.stereotype.Service;
 
 @Service
 // jstack 分析器提取线程状态、热点调用栈、锁竞争和常见外部 IO 阻塞线索。
+/**
+ * 封装业务逻辑和数据处理能力。
+ *
+ * @author zhiwuli
+ * @since 2026-05-07
+ */
 public class JstackAnalyzer {
     private static final Pattern HEADER = Pattern.compile("^\"([^\"]+)\".*tid=([^\\s]+).*nid=([^\\s]+).*");
     private static final Pattern STATE = Pattern.compile("^\\s+java\\.lang\\.Thread\\.State:\\s+([A-Z_]+).*");
@@ -23,6 +33,12 @@ public class JstackAnalyzer {
             "RedisInputStream", "redis.clients.jedis", "java.sql", "jdbc", "kafka", "SocketInputStream",
             "socketRead", "HttpClient", "FileInputStream");
 
+    /**
+     * 分析线程转储文本。
+     *
+     * @param text 待处理文本
+     * @return 线程转储分析结果
+     */
     public JstackAnalysisResult analyze(String text) {
         List<ThreadDumpBlock> threads = parse(text);
         Map<Thread.State, Integer> states = new EnumMap<>(Thread.State.class);
@@ -64,6 +80,12 @@ public class JstackAnalyzer {
         return new JstackAnalysisResult(threads.size(), states, groups, contentions, hot, suspicious, deadlock, deadlockDetails, threads);
     }
 
+    /**
+     * 解析输入内容。
+     *
+     * @param text 待处理文本
+     * @return 解析结果
+     */
     public List<ThreadDumpBlock> parse(String text) {
         if (text == null || text.isBlank()) {
             return List.of();

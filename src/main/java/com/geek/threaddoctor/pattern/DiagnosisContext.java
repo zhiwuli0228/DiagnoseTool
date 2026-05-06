@@ -1,3 +1,7 @@
+/**
+ * Copyright &copy; 2026-2026 zhiwu Technologies Co., Ltd. All rights reserved.
+ */
+
 package com.geek.threaddoctor.pattern;
 
 import com.geek.threaddoctor.evidence.Evidence;
@@ -9,6 +13,12 @@ import com.geek.threaddoctor.metrics.RedisMetrics;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * 承载不可变业务数据。
+ *
+ * @author zhiwuli
+ * @since 2026-05-07
+ */
 public record DiagnosisContext(
         IncidentSession session,
         List<Evidence> evidences,

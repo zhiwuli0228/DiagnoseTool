@@ -1,3 +1,7 @@
+/**
+ * Copyright &copy; 2026-2026 zhiwu Technologies Co., Ltd. All rights reserved.
+ */
+
 package com.geek.threaddoctor.loganalysis;
 
 import java.time.LocalDateTime;
@@ -11,6 +15,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
 
+/**
+ * 封装业务逻辑和数据处理能力。
+ *
+ * @author zhiwuli
+ * @since 2026-05-07
+ */
 @Component
 public class LogParser {
     private static final Pattern STRUCTURED = Pattern.compile(
@@ -27,10 +37,23 @@ public class LogParser {
 
     private final SensitiveDataMasker masker;
 
+    /**
+     * 执行业务操作。
+     *
+     * @param masker 业务参数
+     */
     public LogParser(SensitiveDataMasker masker) {
         this.masker = masker;
     }
 
+    /**
+     * 解析输入内容。
+     *
+     * @param sourceFile 业务参数
+     * @param content 内容
+     * @param properties 配置属性
+     * @return 解析结果
+     */
     public ParsedLogFile parse(String sourceFile, String content, LogAnalysisProperties properties) {
         String[] lines = content.replace("\r\n", "\n").replace('\r', '\n').split("\n", -1);
         List<LogEvent> events = new ArrayList<>();

@@ -1,3 +1,7 @@
+/**
+ * Copyright &copy; 2026-2026 zhiwu Technologies Co., Ltd. All rights reserved.
+ */
+
 package com.geek.threaddoctor.prompt;
 
 import java.io.IOException;
@@ -10,15 +14,32 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
+/**
+ * 封装业务逻辑和数据处理能力。
+ *
+ * @author zhiwuli
+ * @since 2026-05-07
+ */
 @Component
 public class PromptTemplateLoader {
     private final PromptProperties properties;
     private final Map<PromptTemplateType, PromptTemplate> cache = new ConcurrentHashMap<>();
 
+    /**
+     * 执行业务操作。
+     *
+     * @param properties 配置属性
+     */
     public PromptTemplateLoader(PromptProperties properties) {
         this.properties = properties;
     }
 
+    /**
+     * 加载提示词模板。
+     *
+     * @param type 类型
+     * @return 业务处理结果
+     */
     public PromptTemplate load(PromptTemplateType type) {
         if (properties.cacheEnabled()) {
             return cache.computeIfAbsent(type, this::loadUncached);

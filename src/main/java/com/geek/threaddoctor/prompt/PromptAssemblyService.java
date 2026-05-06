@@ -1,3 +1,7 @@
+/**
+ * Copyright &copy; 2026-2026 zhiwu Technologies Co., Ltd. All rights reserved.
+ */
+
 package com.geek.threaddoctor.prompt;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -15,6 +19,12 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
+/**
+ * 封装业务逻辑和数据处理能力。
+ *
+ * @author zhiwuli
+ * @since 2026-05-07
+ */
 @Service
 public class PromptAssemblyService {
     private final PromptTemplateLoader loader;
@@ -22,6 +32,14 @@ public class PromptAssemblyService {
     private final PromptProperties properties;
     private final ObjectMapper objectMapper;
 
+    /**
+     * 执行业务操作。
+     *
+     * @param loader 业务参数
+     * @param renderer 业务参数
+     * @param properties 配置属性
+     * @param objectMapper 数据映射组件
+     */
     public PromptAssemblyService(PromptTemplateLoader loader, PromptRenderer renderer,
             PromptProperties properties, ObjectMapper objectMapper) {
         this.loader = loader;
@@ -30,6 +48,13 @@ public class PromptAssemblyService {
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * 执行业务操作。
+     *
+     * @param evidencePack 业务参数
+     * @param request 请求数据
+     * @return 业务处理结果
+     */
     public DiagnosisPrompt buildDiagnosisPrompt(EvidencePack evidencePack, DiagnosisRequest request) {
         return buildDiagnosisPrompt(
                 request.userGoal(),
@@ -42,6 +67,14 @@ public class PromptAssemblyService {
                         "recommendedChecks", evidencePack.recommendedChecks())));
     }
 
+    /**
+     * 执行业务操作。
+     *
+     * @param context 诊断上下文
+     * @param detections 业务参数
+     * @param evidenceContext 业务参数
+     * @return 业务处理结果
+     */
     public DiagnosisPrompt buildDiagnosisPrompt(DiagnosisContext context, List<DetectionResult> detections,
             List<Map<String, Object>> evidenceContext) {
         Map<String, Object> incident = Map.of(
@@ -60,6 +93,12 @@ public class PromptAssemblyService {
                 toJson(evidencePack));
     }
 
+    /**
+     * 执行业务操作。
+     *
+     * @param evidencePack 业务参数
+     * @return 文本结果
+     */
     public String buildCodexTaskPrompt(EvidencePack evidencePack) {
         return render(PromptTemplateType.CODEX_INVESTIGATION_TASK, Map.of(
                 "incidentSummary", evidencePack.incidentSummary(),
@@ -68,10 +107,22 @@ public class PromptAssemblyService {
                 "suspectedCodeAreas", suspectedBullets(evidencePack.suspectedCodeAreas())));
     }
 
+    /**
+     * 执行业务操作。
+     *
+     * @param variables 业务参数
+     * @return 文本结果
+     */
     public String buildDiagnosisCodebaseInvestigationPrompt(Map<String, Object> variables) {
         return render(PromptTemplateType.DIAGNOSIS_CODEBASE_INVESTIGATION, variables);
     }
 
+    /**
+     * 执行业务操作。
+     *
+     * @param evidencePack 业务参数
+     * @return 文本结果
+     */
     public String buildOpenSpecChangeDraftPrompt(EvidencePack evidencePack) {
         String suspected = suspectedBullets(evidencePack.suspectedCodeAreas());
         String tasks = """
@@ -108,6 +159,13 @@ public class PromptAssemblyService {
                 "specDelta", specDelta));
     }
 
+    /**
+     * 执行业务操作。
+     *
+     * @param evidencePack 业务参数
+     * @param diagnosisReport 业务参数
+     * @return 文本结果
+     */
     public String buildIncidentReviewPrompt(EvidencePack evidencePack, DiagnosisReport diagnosisReport) {
         return render(PromptTemplateType.INCIDENT_REVIEW, Map.of(
                 "faultName", diagnosisReport.getSummary(),

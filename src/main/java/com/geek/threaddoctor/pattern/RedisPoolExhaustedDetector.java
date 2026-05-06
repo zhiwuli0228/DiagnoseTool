@@ -1,3 +1,7 @@
+/**
+ * Copyright &copy; 2026-2026 zhiwu Technologies Co., Ltd. All rights reserved.
+ */
+
 package com.geek.threaddoctor.pattern;
 
 import com.geek.threaddoctor.common.ConfidenceLevel;
@@ -7,12 +11,29 @@ import org.springframework.stereotype.Component;
 
 @Component
 // 识别 Redis 连接池耗尽：指标直接命中优先，日志与 jstack 可作为组合证据。
+/**
+ * 封装业务逻辑和数据处理能力。
+ *
+ * @author zhiwuli
+ * @since 2026-05-07
+ */
 public class RedisPoolExhaustedDetector implements FaultPatternDetector {
+    /**
+     * 获取故障模式类型。
+     *
+     * @return 故障模式类型
+     */
     @Override
     public FaultPatternType type() {
         return FaultPatternType.REDIS_POOL_EXHAUSTED;
     }
 
+    /**
+     * 执行故障模式检测。
+     *
+     * @param context 诊断上下文
+     * @return 检测结果
+     */
     @Override
     public DetectionResult detect(DiagnosisContext context) {
         // active 达到 maxActive、idle 为 0 且存在 waiters，说明连接池已无可借连接。

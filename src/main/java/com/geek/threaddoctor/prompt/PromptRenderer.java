@@ -1,3 +1,7 @@
+/**
+ * Copyright &copy; 2026-2026 zhiwu Technologies Co., Ltd. All rights reserved.
+ */
+
 package com.geek.threaddoctor.prompt;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -14,15 +18,32 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
 
+/**
+ * 封装业务逻辑和数据处理能力。
+ *
+ * @author zhiwuli
+ * @since 2026-05-07
+ */
 @Component
 public class PromptRenderer {
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{\\{\\s*([A-Za-z0-9_.-]+)\\s*}}");
     private final ObjectMapper objectMapper;
 
+    /**
+     * 执行业务操作。
+     *
+     * @param objectMapper 数据映射组件
+     */
     public PromptRenderer(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * 渲染提示词模板。
+     *
+     * @param request 请求数据
+     * @return 业务处理结果
+     */
     public PromptRenderResult render(PromptRenderRequest request) {
         Matcher matcher = PLACEHOLDER.matcher(request.templateContent());
         StringBuffer rendered = new StringBuffer();

@@ -1,3 +1,7 @@
+/**
+ * Copyright &copy; 2026-2026 zhiwu Technologies Co., Ltd. All rights reserved.
+ */
+
 package com.geek.threaddoctor.api;
 
 import com.geek.threaddoctor.loganalysis.CodexTask;
@@ -25,12 +29,23 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+/**
+ * 封装业务逻辑和数据处理能力。
+ *
+ * @author zhiwuli
+ * @since 2026-05-07
+ */
 @RestController
 @RequestMapping("/api/log-analysis/sessions")
 @Validated
 public class LogAnalysisController {
     private final LogAnalysisService service;
 
+    /**
+     * 执行业务操作。
+     *
+     * @param service 业务服务
+     */
     public LogAnalysisController(LogAnalysisService service) {
         this.service = service;
     }

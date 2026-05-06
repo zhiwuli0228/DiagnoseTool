@@ -1,3 +1,7 @@
+/**
+ * Copyright &copy; 2026-2026 zhiwu Technologies Co., Ltd. All rights reserved.
+ */
+
 package com.geek.threaddoctor.api;
 
 import com.geek.threaddoctor.diagnosis.DiagnosisProgress;
@@ -12,6 +16,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.validation.annotation.Validated;
 
+/**
+ * 提供业务说明。
+ *
+ * @author zhiwuli
+ * @since 2026-05-07
+ */
 @RestController
 @RequestMapping("/api/incidents/{sessionId}")
 @Validated
@@ -19,6 +29,12 @@ public class DiagnosisController {
     private final DiagnosisReportService reportService;
     private final DiagnosisProgressService progressService;
 
+    /**
+     * 执行业务操作。
+     *
+     * @param reportService 业务服务依赖
+     * @param progressService 业务服务依赖
+     */
     public DiagnosisController(DiagnosisReportService reportService, DiagnosisProgressService progressService) {
         this.reportService = reportService;
         this.progressService = progressService;

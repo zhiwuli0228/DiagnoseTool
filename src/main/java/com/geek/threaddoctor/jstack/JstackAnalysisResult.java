@@ -1,8 +1,18 @@
+/**
+ * Copyright &copy; 2026-2026 zhiwu Technologies Co., Ltd. All rights reserved.
+ */
+
 package com.geek.threaddoctor.jstack;
 
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 承载不可变业务数据。
+ *
+ * @author zhiwuli
+ * @since 2026-05-07
+ */
 public record JstackAnalysisResult(
         int totalThreads,
         Map<Thread.State, Integer> stateCount,

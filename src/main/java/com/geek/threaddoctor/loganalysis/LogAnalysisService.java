@@ -1,3 +1,7 @@
+/**
+ * Copyright &copy; 2026-2026 zhiwu Technologies Co., Ltd. All rights reserved.
+ */
+
 package com.geek.threaddoctor.loganalysis;
 
 import com.geek.threaddoctor.common.ResourceNotFoundException;
@@ -30,6 +34,12 @@ import java.util.zip.ZipInputStream;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+/**
+ * 封装业务逻辑和数据处理能力。
+ *
+ * @author zhiwuli
+ * @since 2026-05-07
+ */
 @Service
 public class LogAnalysisService {
     private static final Pattern STACK_FRAME = Pattern.compile("\\bat\\s+([A-Za-z_$][\\w$]*(?:\\.[A-Za-z_$][\\w$]*)*)\\.([A-Za-z_$][\\w$]*)\\(");
@@ -45,6 +55,15 @@ public class LogAnalysisService {
     private final PromptAssemblyService promptAssemblyService;
     private final ArtifactSanitizer artifactSanitizer;
 
+    /**
+     * 执行业务操作。
+     *
+     * @param repository 仓储依赖
+     * @param properties 配置属性
+     * @param parser 业务参数
+     * @param promptAssemblyService 业务服务依赖
+     * @param artifactSanitizer 业务参数
+     */
     public LogAnalysisService(InMemoryLogAnalysisSessionRepository repository,
             LogAnalysisProperties properties,
             LogParser parser,
@@ -57,6 +76,14 @@ public class LogAnalysisService {
         this.artifactSanitizer = artifactSanitizer;
     }
 
+    /**
+     * 执行业务操作。
+     *
+     * @param repository 仓储依赖
+     * @param properties 配置属性
+     * @param parser 业务参数
+     * @param promptAssemblyService 业务服务依赖
+     */
     public LogAnalysisService(InMemoryLogAnalysisSessionRepository repository,
             LogAnalysisProperties properties,
             LogParser parser,
@@ -66,16 +93,34 @@ public class LogAnalysisService {
                         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)));
     }
 
+    /**
+     * 创建日志分析会话。
+     *
+     * @return 日志分析会话
+     */
     public LogAnalysisSession createSession() {
         LogAnalysisSession session = new LogAnalysisSession("LOG-" + UUID.randomUUID(), LocalDateTime.now());
         return repository.save(session);
     }
 
+    /**
+     * 获取日志分析会话。
+     *
+     * @param sessionId 会话标识
+     * @return 日志分析会话
+     */
     public LogAnalysisSession getSession(String sessionId) {
         return repository.findById(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Log analysis session not found: " + sessionId));
     }
 
+    /**
+     * 上传并分析压缩日志。
+     *
+     * @param sessionId 会话标识
+     * @param file 上传文件
+     * @return 更新后的日志分析会话
+     */
     public LogAnalysisSession uploadZip(String sessionId, MultipartFile file) {
         if (!properties.zipEnabled()) {
             throw structuredFailure(sessionId, "ZIP_DISABLED", "ZIP log ingestion is disabled.", null);
@@ -100,6 +145,13 @@ public class LogAnalysisService {
         return repository.save(session);
     }
 
+    /**
+     * 上传并分析目录日志文件。
+     *
+     * @param sessionId 会话标识
+     * @param files 上传文件集合
+     * @return 更新后的日志分析会话
+     */
     public LogAnalysisSession uploadDirectoryFiles(String sessionId, MultipartFile[] files) {
         if (!properties.directoryScanEnabled()) {
             throw structuredFailure(sessionId, "DIRECTORY_UPLOAD_DISABLED", "Directory upload is disabled.", null);
@@ -186,6 +238,13 @@ public class LogAnalysisService {
         }
     }
 
+    /**
+     * 扫描服务端目录日志。
+     *
+     * @param sessionId 会话标识
+     * @param rawPath 原始目录路径
+     * @return 更新后的日志分析会话
+     */
     public LogAnalysisSession scanDirectory(String sessionId, String rawPath) {
         if (!properties.directoryScanEnabled()) {
             throw structuredFailure(sessionId, "DIRECTORY_SCAN_DISABLED", "Directory scan is disabled.", rawPath);
@@ -220,6 +279,13 @@ public class LogAnalysisService {
         return repository.save(session);
     }
 
+    /**
+     * 检索已分析的日志。
+     *
+     * @param sessionId 会话标识
+     * @param request 请求数据
+     * @return 日志检索结果
+     */
     public LogSearchResult search(String sessionId, LogSearchRequest request) {
         validateSearchRequest(request);
         LogAnalysisSession session = getSession(sessionId);
@@ -237,6 +303,12 @@ public class LogAnalysisService {
         return new LogSearchResult(matched.size(), limit, rows);
     }
 
+    /**
+     * 获取日志事件聚类。
+     *
+     * @param sessionId 会话标识
+     * @return 日志聚类结果
+     */
     public List<LogCluster> clusters(String sessionId) {
         LogAnalysisSession session = getSession(sessionId);
         Map<String, List<LogEvent>> groups = session.events().stream()
@@ -251,6 +323,12 @@ public class LogAnalysisService {
                 .toList();
     }
 
+    /**
+     * 获取事件时间线。
+     *
+     * @param sessionId 会话标识
+     * @return 事件时间线
+     */
     public IncidentTimeline timeline(String sessionId) {
         List<LogCluster> clusters = clusters(sessionId);
         Map<String, String> clusterByFingerprint = clusters.stream()
@@ -273,6 +351,12 @@ public class LogAnalysisService {
         return new IncidentTimeline(sessionId, events);
     }
 
+    /**
+     * 构建证据包。
+     *
+     * @param sessionId 会话标识
+     * @return 证据包
+     */
     public EvidencePack evidencePack(String sessionId) {
         LogAnalysisSession session = getSession(sessionId);
         List<LogCluster> keyClusters = clusters(sessionId);
@@ -299,6 +383,12 @@ public class LogAnalysisService {
                         "Suspected code areas are heuristic and require codebase verification."));
     }
 
+    /**
+     * 构建文档格式的证据包。
+     *
+     * @param sessionId 会话标识
+     * @return 文档格式的证据包
+     */
     public String evidencePackMarkdown(String sessionId) {
         EvidencePack pack = evidencePack(sessionId);
         StringBuilder markdown = new StringBuilder();
@@ -328,12 +418,24 @@ public class LogAnalysisService {
         return artifactSanitizer.sanitize(markdown.toString(), properties);
     }
 
+    /**
+     * 构建代码库排查任务。
+     *
+     * @param sessionId 会话标识
+     * @return 代码库排查任务
+     */
     public CodexTask codexTask(String sessionId) {
         EvidencePack pack = evidencePack(sessionId);
         String markdown = promptAssemblyService.buildCodexTaskPrompt(pack);
         return new CodexTask(sessionId, artifactSanitizer.sanitize(markdown, properties));
     }
 
+    /**
+     * 构建变更草稿。
+     *
+     * @param sessionId 会话标识
+     * @return 变更草稿
+     */
     public OpenSpecChangeDraft openSpecChangeDraft(String sessionId) {
         EvidencePack pack = evidencePack(sessionId);
         String markdown = artifactSanitizer.sanitize(promptAssemblyService.buildOpenSpecChangeDraftPrompt(pack), properties);
