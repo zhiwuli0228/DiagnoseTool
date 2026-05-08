@@ -31,6 +31,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -64,6 +65,7 @@ public class LogAnalysisService {
      * @param promptAssemblyService 业务服务依赖
      * @param artifactSanitizer 业务参数
      */
+    @Autowired
     public LogAnalysisService(InMemoryLogAnalysisSessionRepository repository,
             LogAnalysisProperties properties,
             LogParser parser,
@@ -286,6 +288,62 @@ public class LogAnalysisService {
      * @param request 请求数据
      * @return 日志检索结果
      */
+    /**
+     * 接收 Sidecar 结构化结果并写入日志分析会话。
+     *
+     * @param sessionId 日志分析会话标识
+     * @param request Sidecar 结构化结果
+     * @return 更新后的日志分析会话
+     */
+    public LogAnalysisSession submitSidecarResult(String sessionId, SidecarResultSubmission request) {
+        if (request == null) {
+            throw structuredFailure(sessionId, "SIDECAR_RESULT_EMPTY", "Sidecar result payload is required.", null);
+        }
+        LogAnalysisSession session = getSession(sessionId);
+        List<LogSource> sources = boundedList(request.sources(), properties.sampleLogLimit(), "SIDECAR_SOURCE_LIMIT", sessionId);
+        List<LogFileSummary> summaries = boundedList(request.fileSummaries(), properties.responseLimit(), "SIDECAR_FILE_SUMMARY_LIMIT", sessionId);
+        List<LogEvent> events = boundedList(request.selectedEvents(), properties.maxSearchLimit(), "SIDECAR_EVENT_LIMIT", sessionId);
+        for (LogSource source : sources) {
+            validateSafeSourceLabel(sessionId, source == null ? null : source.name(), "SIDECAR_SOURCE_PATH");
+            if (source != null) {
+                session.addSource(new LogSource(
+                        source.id() == null || source.id().isBlank() ? UUID.randomUUID().toString() : TextBounds.limit(source.id(), 96),
+                        source.type() == null ? LogSourceType.DIRECTORY : source.type(),
+                        sanitizeLabel(source.name()),
+                        Math.max(0, source.byteSize())));
+            }
+        }
+        for (LogFileSummary summary : summaries) {
+            validateSafeSourceLabel(sessionId, summary == null ? null : summary.sourceFile(), "SIDECAR_FILE_PATH");
+            if (summary != null) {
+                session.addFileSummary(new LogFileSummary(
+                        sanitizeLabel(summary.sourceFile()),
+                        Math.max(0, summary.byteSize()),
+                        Math.max(0, summary.lineCount()),
+                        Math.max(0, summary.eventCount()),
+                        Math.max(0, summary.unparsedCount())));
+            }
+        }
+        List<LogEvent> sanitizedEvents = new ArrayList<>(session.events());
+        for (LogEvent event : events) {
+            if (event == null) {
+                continue;
+            }
+            validateSafeSourceLabel(sessionId, event.sourceFile(), "SIDECAR_EVENT_PATH");
+            sanitizedEvents.add(sanitizeEvent(event));
+        }
+        enforceEventLimit(sessionId, sanitizedEvents.size(), "sidecar-result");
+        session.replaceEvents(sanitizedEvents);
+        return repository.save(session);
+    }
+
+    /**
+     * 查询日志分析会话中的事件。
+     *
+     * @param sessionId 日志分析会话标识
+     * @param request 查询过滤条件
+     * @return 日志查询结果
+     */
     public LogSearchResult search(String sessionId, LogSearchRequest request) {
         validateSearchRequest(request);
         LogAnalysisSession session = getSession(sessionId);
@@ -495,6 +553,60 @@ public class LogAnalysisService {
                     throw new IllegalArgumentException("Log search level is invalid");
                 }
             }
+        }
+    }
+
+    private <T> List<T> boundedList(List<T> values, int maxSize, String code, String sessionId) {
+        if (values == null) {
+            return List.of();
+        }
+        if (values.size() > maxSize) {
+            throw structuredFailure(sessionId, code, "Sidecar result collection exceeds configured limit.", null);
+        }
+        return values;
+    }
+
+    private LogEvent sanitizeEvent(LogEvent event) {
+        String message = artifactSanitizer.sanitize(TextBounds.limit(event.message(), properties.rawTextLimit()), properties);
+        String rawText = artifactSanitizer.sanitize(TextBounds.limit(event.rawText(), properties.rawTextLimit()), properties);
+        String stackTrace = artifactSanitizer.sanitize(TextBounds.limit(event.stackTrace(), properties.stackTraceLimit()), properties);
+        return new LogEvent(
+                event.id() == null || event.id().isBlank() ? UUID.randomUUID().toString() : TextBounds.limit(event.id(), 96),
+                event.timestamp(),
+                safeLevel(event.level()),
+                TextBounds.limit(event.threadName(), 120),
+                TextBounds.limit(event.loggerName(), 240),
+                TextBounds.limit(event.traceId(), 160),
+                message,
+                TextBounds.limit(event.exceptionType(), 240),
+                stackTrace,
+                rawText,
+                sanitizeLabel(event.sourceFile()),
+                Math.max(0, event.lineNumber()),
+                event.tags() == null ? List.of() : event.tags().stream().filter(Objects::nonNull).limit(properties.sampleLogLimit()).toList(),
+                Math.max(0, event.duplicateCount()));
+    }
+
+    private String sanitizeLabel(String value) {
+        return artifactSanitizer.sanitize(TextBounds.limit(value, properties.rawTextLimit()), properties);
+    }
+
+    private String safeLevel(String level) {
+        if (level == null || level.isBlank()) {
+            return "UNPARSED";
+        }
+        String normalized = level.toUpperCase(Locale.ROOT);
+        return Set.of("TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL", "UNPARSED").contains(normalized)
+                ? normalized
+                : "UNPARSED";
+    }
+
+    private void validateSafeSourceLabel(String sessionId, String value, String code) {
+        if (value == null || value.isBlank()) {
+            return;
+        }
+        if (SidecarPathUtil.looksAbsolute(value) || value.contains("..")) {
+            throw structuredFailure(sessionId, code, "Sidecar result must not contain absolute or traversal source paths.", value);
         }
     }
 

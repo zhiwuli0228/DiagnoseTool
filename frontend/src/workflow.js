@@ -30,7 +30,9 @@ export const initialWorkflowState = {
   logAnalysisDraft: {
     sourceType: 'zip',
     zipFile: null,
+    zipPath: '',
     directoryFiles: [],
+    directoryPath: '',
     searchKeywords: '',
     searchLevels: [],
     searchLimit: 20,
@@ -46,6 +48,8 @@ export const initialWorkflowState = {
   logClusters: [],
   logTimeline: [],
   logSearchResult: null,
+  sidecarStatus: null,
+  sidecarSnapshot: null,
   evidencePack: null,
   evidencePackMarkdown: '',
   generatedCodexTask: null,
@@ -110,9 +114,12 @@ export function diagnosisReducer(state, action) {
         logTimeline: action.timeline?.events || [],
         evidencePack: action.evidencePack || null,
         evidencePackMarkdown: action.evidencePackMarkdown || '',
+        sidecarSnapshot: action.sidecarSnapshot || null,
         logSearchResult: null,
         error: ''
       };
+    case 'sidecarStatusReceived':
+      return { ...state, sidecarStatus: action.status, error: '' };
     case 'logSearchReceived':
       return { ...state, logSearchResult: action.result, error: '' };
     case 'codexTaskReceived':
@@ -170,14 +177,16 @@ function normalizeLogAnalysisDraft(current, field, value) {
       ...current,
       sourceType: value,
       zipFile: value === 'zip' ? current.zipFile : null,
-      directoryFiles: value === 'directory' ? current.directoryFiles : []
+      zipPath: value === 'zip' ? current.zipPath : '',
+      directoryFiles: value === 'directory' ? current.directoryFiles : [],
+      directoryPath: value === 'directory' ? current.directoryPath : ''
     };
   }
   if (field === 'zipFile') {
-    return { ...current, sourceType: 'zip', zipFile: value, directoryFiles: [] };
+    return { ...current, sourceType: 'zip', zipFile: value, directoryFiles: [], directoryPath: '' };
   }
   if (field === 'directoryFiles') {
-    return { ...current, sourceType: 'directory', directoryFiles: value || [], zipFile: null };
+    return { ...current, sourceType: 'directory', directoryFiles: value || [], zipFile: null, zipPath: '' };
   }
   return { ...current, [field]: value };
 }

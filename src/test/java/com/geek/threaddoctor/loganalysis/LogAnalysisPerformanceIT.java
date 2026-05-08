@@ -95,6 +95,11 @@ class LogAnalysisPerformanceIT {
                 5,
                 200,
                 200,
+                250_000,
+                3,
+                80L * 1024 * 1024,
+                2_000,
+                20,
                 true);
         return new LogAnalysisService(
                 new InMemoryLogAnalysisSessionRepository(new CacheProperties(10, 7_200)),

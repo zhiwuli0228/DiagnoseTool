@@ -192,6 +192,27 @@ export function ConversationalDiagnosisApp({ apiClient = diagnosisApi, config = 
     };
   }, [apiClient]);
 
+  useEffect(() => {
+    let active = true;
+    if (!apiClient.getSidecarHealth) {
+      return undefined;
+    }
+    apiClient.getSidecarHealth()
+      .then((status) => {
+        if (active) {
+          dispatch({ type: 'sidecarStatusReceived', status });
+        }
+      })
+      .catch(() => {
+        if (active) {
+          dispatch({ type: 'sidecarStatusReceived', status: { status: 'DOWN' } });
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [apiClient]);
+
   if (!config.conversationalDiagnosisEnabled) {
     return (
       <main className="app-shell">
@@ -316,6 +337,58 @@ export function ConversationalDiagnosisApp({ apiClient = diagnosisApi, config = 
     setExpandedEvidenceInputs((current) => ({ ...current, log: true }));
   }
 
+  async function prepareSidecarAnalysis(snapshot) {
+    dispatch({
+      type: 'logAnalysisReceived',
+      session: snapshot.session,
+      clusters: snapshot.clusters,
+      timeline: snapshot.timeline,
+      evidencePack: snapshot.evidencePack,
+      evidencePackMarkdown: snapshot.evidencePackMarkdown,
+      sidecarSnapshot: snapshot
+    });
+    setExpandedEvidenceInputs((current) => ({ ...current, log: true }));
+  }
+
+  function analyzeSidecarZip() {
+    return runGuarded(actionTaskName(TaskAction.LOG_ZIP_UPLOAD, state.logAnalysisDraft.zipPath || 'sidecar-zip'), async () => {
+      if (!state.logAnalysisDraft.zipPath.trim()) {
+        throw new Error('请输入 Sidecar 本地 ZIP 路径。');
+      }
+      await prepareSidecarAnalysis(await apiClient.analyzeSidecarZip(state.logAnalysisDraft.zipPath.trim()));
+    });
+  }
+
+  function analyzeSidecarDirectory() {
+    return runGuarded(actionTaskName(TaskAction.LOG_DIRECTORY_SCAN, state.logAnalysisDraft.directoryPath || 'sidecar-directory'), async () => {
+      if (!state.logAnalysisDraft.directoryPath.trim()) {
+        throw new Error('请输入 Sidecar 本地日志目录路径。');
+      }
+      await prepareSidecarAnalysis(await apiClient.analyzeSidecarDirectory(state.logAnalysisDraft.directoryPath.trim()));
+    });
+  }
+
+  function submitSidecarResult() {
+    return runGuarded(actionTaskName(TaskAction.LOG_ZIP_UPLOAD, state.logAnalysisSession?.id || 'sidecar-submit'), async () => {
+      if (!state.sidecarSnapshot || !state.logAnalysisSession?.id?.startsWith('LOCAL-')) {
+        throw new Error('没有可提交的 Sidecar 本地分析结果。');
+      }
+      const logSession = await apiClient.createLogAnalysisSession();
+      const selectedEvents = state.logSearchResult?.events?.length
+        ? state.logSearchResult.events
+        : state.sidecarSnapshot.selectedEvents?.events || [];
+      const submitted = await apiClient.submitSidecarResult(logSession.id, {
+        sources: state.logAnalysisSession.sources || [],
+        fileSummaries: state.logAnalysisSession.fileSummaries || [],
+        selectedEvents,
+        evidencePack: state.sidecarSnapshot.evidencePack || null,
+        evidencePackMarkdown: state.sidecarSnapshot.evidencePackMarkdown || '',
+        metadata: { mode: 'sidecar', rawLogsSubmitted: 'false', sidecarSessionId: state.logAnalysisSession.id }
+      });
+      await prepareLogAnalysis(submitted);
+    });
+  }
+
   function uploadLogZip() {
     return runGuarded(actionTaskName(TaskAction.LOG_ZIP_UPLOAD, state.logAnalysisDraft.zipFile?.name || 'zip'), async () => {
       if (!state.logAnalysisDraft.zipFile) {
@@ -345,7 +418,7 @@ export function ConversationalDiagnosisApp({ apiClient = diagnosisApi, config = 
         throw new Error(i18n.t('tips.logSearchKeywords'));
       }
       const levels = state.logAnalysisDraft.searchLevels;
-      const result = await apiClient.searchLogEvents(state.logAnalysisSession.id, {
+      const searchPayload = {
         keywords: state.logAnalysisDraft.searchKeywords.trim(),
         levels,
         timeFrom: state.logAnalysisDraft.timeFrom || null,
@@ -354,7 +427,10 @@ export function ConversationalDiagnosisApp({ apiClient = diagnosisApi, config = 
         includeStackTrace: Boolean(state.logAnalysisDraft.includeStackTrace),
         ignoreCase: Boolean(state.logAnalysisDraft.ignoreCase),
         deduplicate: Boolean(state.logAnalysisDraft.deduplicate)
-      });
+      };
+      const result = state.logAnalysisSession.id?.startsWith('LOCAL-')
+        ? await apiClient.searchSidecarEvents(state.logAnalysisSession.id, searchPayload)
+        : await apiClient.searchLogEvents(state.logAnalysisSession.id, searchPayload);
       dispatch({ type: 'logSearchReceived', result });
     });
   }
@@ -507,26 +583,42 @@ export function ConversationalDiagnosisApp({ apiClient = diagnosisApi, config = 
               {expandedEvidenceInputs.log && (
                 <>
                   <div className="log-source-controls">
+                    <div className="status-line">
+                      <span>Sidecar: {state.sidecarStatus?.status === 'UP' ? `UP :${state.sidecarStatus.port}` : 'DOWN'}</span>
+                      <strong>大日志默认本地解析，原始日志不上传后端</strong>
+                    </div>
                     <label className="checkbox-label"><input type="radio" name="log-source" checked={state.logAnalysisDraft.sourceType === 'zip'} onChange={() => updateLogAnalysisDraft('sourceType', 'zip')} />{i18n.t('labels.logSourceZip')}</label>
                     <label className="checkbox-label"><input type="radio" name="log-source" checked={state.logAnalysisDraft.sourceType === 'directory'} onChange={() => updateLogAnalysisDraft('sourceType', 'directory')} />{i18n.t('labels.logSourceDirectory')}</label>
                     {state.logAnalysisDraft.sourceType === 'zip' && (
                       <>
+                        <label>Sidecar ZIP 路径<input title="Sidecar 会在本机读取该 ZIP，原始日志不会上传后端。" value={state.logAnalysisDraft.zipPath} onChange={(event) => updateLogAnalysisDraft('zipPath', event.target.value)} placeholder="E:\\logs\\incident.zip" /></label>
+                        <button onClick={analyzeSidecarZip} disabled={isBusy || state.sidecarStatus?.status !== 'UP' || !state.logAnalysisDraft.zipPath.trim()} title="使用本机 Sidecar 解析大 ZIP"><FolderOpen size={16} /> Sidecar 本地解析 ZIP</button>
+                        <Tip text="大 ZIP 推荐使用 Sidecar 路径解析。下面的文件上传仅用于小文件兼容模式。" />
                         <label>{i18n.t('labels.logZip')}<input type="file" accept=".zip,application/zip" title={i18n.t('tips.logZip')} onChange={(event) => updateLogAnalysisDraft('zipFile', event.target.files?.[0] || null)} /></label>
                         <Tip text={i18n.t('tips.logZip')} />
-                        <button onClick={uploadLogZip} disabled={isBusy || !state.logAnalysisDraft.zipFile} title={i18n.t('tips.uploadLogZip')}><Upload size={16} /> {i18n.t('buttons.uploadLogZip')}</button>
+                        <button className="secondary-button" aria-label={i18n.t('buttons.uploadLogZip')} onClick={uploadLogZip} disabled={isBusy || !state.logAnalysisDraft.zipFile} title={i18n.t('tips.uploadLogZip')}><Upload size={16} /> 小文件兼容上传</button>
                         <Tip text={i18n.t('tips.uploadLogZip')} />
                       </>
                     )}
                     {state.logAnalysisDraft.sourceType === 'directory' && (
                       <>
+                        <label>Sidecar 目录路径<input title="Sidecar 会在本机读取该目录，原始日志不会上传后端。" value={state.logAnalysisDraft.directoryPath} onChange={(event) => updateLogAnalysisDraft('directoryPath', event.target.value)} placeholder="E:\\logs\\incident" /></label>
+                        <button onClick={analyzeSidecarDirectory} disabled={isBusy || state.sidecarStatus?.status !== 'UP' || !state.logAnalysisDraft.directoryPath.trim()} title="使用本机 Sidecar 解析大目录"><FolderOpen size={16} /> Sidecar 本地解析目录</button>
+                        <Tip text="大目录推荐使用 Sidecar 路径解析。下面的目录上传仅用于小文件兼容模式。" />
                         <label>{i18n.t('labels.logDirectory')}<input type="file" multiple webkitdirectory="" directory="" title={i18n.t('tips.logDirectory')} onChange={(event) => updateLogAnalysisDraft('directoryFiles', Array.from(event.target.files || []))} /></label>
                         <Tip text={i18n.t('tips.logDirectory')} />
-                        <button onClick={scanLogDirectory} disabled={isBusy || state.logAnalysisDraft.directoryFiles.length === 0} title={i18n.t('tips.scanLogDirectory')}><FolderOpen size={16} /> {i18n.t('buttons.scanLogDirectory')}</button>
+                        <button className="secondary-button" aria-label={i18n.t('buttons.scanLogDirectory')} onClick={scanLogDirectory} disabled={isBusy || state.logAnalysisDraft.directoryFiles.length === 0} title={i18n.t('tips.scanLogDirectory')}><FolderOpen size={16} /> 小文件兼容上传</button>
                         <Tip text={i18n.t('tips.scanLogDirectory')} />
                       </>
                     )}
                   </div>
                   {state.logAnalysisSession && <div className="status-line"><span>{i18n.t('labels.logSession')}: {state.logAnalysisSession.id}</span><strong>{state.logAnalysisSession.status}</strong></div>}
+                  {state.sidecarSnapshot && state.logAnalysisSession?.id?.startsWith('LOCAL-') && (
+                    <div className="status-line">
+                      <span>Sidecar 结果尚未提交后端</span>
+                      <button onClick={submitSidecarResult} disabled={isBusy} title="只提交脱敏后的结构化结果和已选片段"><Upload size={16} /> 提交结构化结果</button>
+                    </div>
+                  )}
                   {state.logFileSummaries.length > 0 && <article className="result-block"><h3>{i18n.t('labels.logFiles')}</h3><p>{i18n.t('labels.logFileSummary', { shown: visibleFileSummaries(state.logFileSummaries).length, total: state.logFileSummaries.length })}</p><div className="compact-list">{visibleFileSummaries(state.logFileSummaries).map((file) => <div key={file.sourceFile}><strong>{file.sourceFile}</strong><span>{file.eventCount} events / {file.unparsedCount} unparsed</span></div>)}</div></article>}
                   {state.logClusters.length > 0 && <article className="result-block"><h3>{i18n.t('labels.logClusters')}</h3><div className="compact-list">{state.logClusters.slice(0, 8).map((cluster) => <div key={cluster.clusterId}><strong>{clusterTitle(cluster)}</strong><span>{clusterMeta(cluster)}</span></div>)}</div></article>}
                   {state.logTimeline.length > 0 && <article className="result-block"><h3>{i18n.t('labels.logTimeline')}</h3><div className="compact-list timeline-list">{state.logTimeline.slice(0, 10).map((event) => <div key={`${event.evidenceEventId}-${event.time}`}><strong>{event.severity}</strong><span>{timelineSummary(event)}</span></div>)}</div></article>}

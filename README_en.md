@@ -1,6 +1,6 @@
 # Thread Doctor
 
-Lightweight build, deployment, and startup flow for the Spring Boot backend and Vite frontend.
+Thread Doctor is a lightweight Java production diagnosis tool with a Spring Boot backend, a Vite frontend, and a local Sidecar log-analysis service.
 
 ## Build
 
@@ -13,21 +13,19 @@ Outputs:
 - Backend jar: `target\thread-doctor-0.1.0-SNAPSHOT.jar`
 - Frontend assets: `frontend\dist\`
 
-The backend jar is a Spring Boot executable jar and can run directly:
+The jar can run directly:
 
 ```powershell
 java -jar .\target\thread-doctor-0.1.0-SNAPSHOT.jar
 ```
 
-## Deploy Existing Build
-
-After building, deploy without rebuilding:
+## Deploy
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\deploy.ps1 -SkipBuild
 ```
 
-Or pass explicit artifact paths:
+Or pass existing artifacts:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\deploy.ps1 -SkipBuild -BackendJar .\target\thread-doctor-0.1.0-SNAPSHOT.jar -FrontendDist .\frontend\dist
@@ -43,18 +41,36 @@ powershell -ExecutionPolicy Bypass -File .\deploy\status.ps1
 powershell -ExecutionPolicy Bypass -File .\deploy\stop.ps1
 ```
 
-Default URL: `http://localhost:8080/`
+Default URLs:
+
+- Frontend and backend: `http://localhost:8080/`
+- Sidecar health: `http://127.0.0.1:18765/api/sidecar/health`
+
+To change ports, copy `deploy\app.env.example` to `deploy\app.env` and edit:
+
+```properties
+APP_PORT=8080
+SIDECAR_PORT=18765
+```
+
+## Large Log Workflow
+
+Large ZIP files and directories use Sidecar mode by default:
+
+1. Start `deploy\start.ps1`; it starts both the backend and the Sidecar.
+2. Enter the local ZIP path or directory path in the frontend log section.
+3. Run Sidecar local analysis.
+4. Decompression, parsing, masking, clustering, timeline generation, and evidence extraction run locally.
+5. The frontend displays the result; after confirmation, only sanitized structured results or selected key excerpts are submitted to the backend.
+
+Raw logs are not uploaded to the backend by default. File upload buttons are only for small-file compatibility mode and are not recommended for production-sized logs.
 
 ## LLM Configuration
 
-After startup, use the frontend `LLM configuration` panel to update `baseUrl` and `model`.
+Use the frontend `LLM configuration` panel to update `baseUrl` and `model`. New values take effect on the next diagnosis request.
 
-- Saved values take effect for the next diagnosis request without restarting the backend.
-- Fields not configured in the frontend continue to use backend defaults.
-- API keys are not configurable from the frontend or YAML files. Set `LLM_API_KEY` in the runtime environment.
+API keys are read only from the `LLM_API_KEY` environment variable and are not stored in frontend or YAML configuration.
 
 ## Unresolved Diagnosis Handoff
 
-If a diagnosis cannot localize the root cause, the report shows unresolved reasons, requested follow-up evidence, and a copy-only Codex/OpenCode prompt for codebase investigation.
-
-Submit the requested evidence and run diagnosis again, or copy the prompt into Codex/OpenCode. Thread Doctor does not execute the prompt automatically.
+If a diagnosis cannot localize the root cause, the system returns unresolved reasons, requested follow-up evidence, and a copy-only Codex/OpenCode prompt for codebase investigation. Thread Doctor does not execute that prompt automatically.

@@ -14,6 +14,7 @@ import com.geek.threaddoctor.loganalysis.LogCluster;
 import com.geek.threaddoctor.loganalysis.LogSearchRequest;
 import com.geek.threaddoctor.loganalysis.LogSearchResult;
 import com.geek.threaddoctor.loganalysis.OpenSpecChangeDraft;
+import com.geek.threaddoctor.loganalysis.SidecarResultSubmission;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
 import java.util.List;
@@ -76,6 +77,12 @@ public class LogAnalysisController {
     LogAnalysisSession scanDirectory(@PathVariable @Pattern(regexp = "LOG-[A-Za-z0-9-]{1,80}") String sessionId,
             @Valid @RequestBody DirectoryScanRequest request) {
         return service.scanDirectory(sessionId, request.path());
+    }
+
+    @PostMapping("/{sessionId}/sidecar-result")
+    LogAnalysisSession submitSidecarResult(@PathVariable @Pattern(regexp = "LOG-[A-Za-z0-9-]{1,80}") String sessionId,
+            @Valid @RequestBody SidecarResultSubmission request) {
+        return service.submitSidecarResult(sessionId, request);
     }
 
     @PostMapping("/{sessionId}/search")

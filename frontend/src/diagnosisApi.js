@@ -1,6 +1,7 @@
 const incidentsBase = '/api/incidents';
 const logAnalysisBase = '/api/log-analysis/sessions';
 const llmConfigurationBase = '/api/llm/configuration';
+const defaultSidecarBase = 'http://127.0.0.1:18765/api/sidecar';
 
 async function requestJson(path, options = {}, fetchImpl = fetch) {
   const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
@@ -40,7 +41,7 @@ async function errorMessage(response) {
   }
 }
 
-export function createDiagnosisApi(fetchImpl = fetch) {
+export function createDiagnosisApi(fetchImpl = fetch, sidecarBase = defaultSidecarBase) {
   return {
     createIncident(payload) {
       return requestJson(incidentsBase, {
@@ -114,6 +115,40 @@ export function createDiagnosisApi(fetchImpl = fetch) {
       return requestJson(`${logAnalysisBase}/${sessionId}/directory-scan`, {
         method: 'POST',
         body: JSON.stringify({ path })
+      }, fetchImpl);
+    },
+    submitSidecarResult(sessionId, payload) {
+      return requestJson(`${logAnalysisBase}/${sessionId}/sidecar-result`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }, fetchImpl);
+    },
+    getSidecarHealth() {
+      return requestJson(`${sidecarBase}/health`, {
+        method: 'GET'
+      }, fetchImpl);
+    },
+    analyzeSidecarZip(path) {
+      return requestJson(`${sidecarBase}/analysis/zip`, {
+        method: 'POST',
+        body: JSON.stringify({ path })
+      }, fetchImpl);
+    },
+    analyzeSidecarDirectory(path) {
+      return requestJson(`${sidecarBase}/analysis/directory`, {
+        method: 'POST',
+        body: JSON.stringify({ path })
+      }, fetchImpl);
+    },
+    searchSidecarEvents(sessionId, payload) {
+      return requestJson(`${sidecarBase}/sessions/${sessionId}/search`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }, fetchImpl);
+    },
+    getSidecarSnapshot(sessionId) {
+      return requestJson(`${sidecarBase}/sessions/${sessionId}/snapshot`, {
+        method: 'GET'
       }, fetchImpl);
     },
     searchLogEvents(sessionId, payload) {

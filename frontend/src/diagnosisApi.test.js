@@ -76,6 +76,7 @@ describe('diagnosisApi', () => {
     await api.uploadLogZip('LOG-1', file);
     await api.uploadLogDirectory('LOG-1', [file]);
     await api.scanLogDirectory('LOG-1', 'E:\\logs');
+    await api.submitSidecarResult('LOG-1', { selectedEvents: [] });
     await api.searchLogEvents('LOG-1', { keywords: 'timeout,failed', levels: ['ERROR'], ignoreCase: true, timeFrom: '2026-05-05T10:00', limit: 10 });
     await api.getLogClusters('LOG-1');
     await api.getLogTimeline('LOG-1');
@@ -88,6 +89,7 @@ describe('diagnosisApi', () => {
       '/api/log-analysis/sessions/LOG-1/zip',
       '/api/log-analysis/sessions/LOG-1/directory',
       '/api/log-analysis/sessions/LOG-1/directory-scan',
+      '/api/log-analysis/sessions/LOG-1/sidecar-result',
       '/api/log-analysis/sessions/LOG-1/search',
       '/api/log-analysis/sessions/LOG-1/clusters',
       '/api/log-analysis/sessions/LOG-1/timeline',
@@ -99,6 +101,25 @@ describe('diagnosisApi', () => {
     expect(fetchImpl.mock.calls[1][1].headers).not.toHaveProperty('Content-Type');
     expect(fetchImpl.mock.calls[2][1].body).toBeInstanceOf(FormData);
     expect(fetchImpl.mock.calls[2][1].headers).not.toHaveProperty('Content-Type');
+  });
+
+  it('maps sidecar endpoints to loopback service', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(okJson({ status: 'UP' }));
+    const api = createDiagnosisApi(fetchImpl, 'http://127.0.0.1:18765/api/sidecar');
+
+    await api.getSidecarHealth();
+    await api.analyzeSidecarZip('E:\\logs\\incident.zip');
+    await api.analyzeSidecarDirectory('E:\\logs\\incident');
+    await api.searchSidecarEvents('LOCAL-1', { keywords: 'timeout' });
+    await api.getSidecarSnapshot('LOCAL-1');
+
+    expect(fetchImpl.mock.calls.map((call) => [call[0], call[1].method])).toEqual([
+      ['http://127.0.0.1:18765/api/sidecar/health', 'GET'],
+      ['http://127.0.0.1:18765/api/sidecar/analysis/zip', 'POST'],
+      ['http://127.0.0.1:18765/api/sidecar/analysis/directory', 'POST'],
+      ['http://127.0.0.1:18765/api/sidecar/sessions/LOCAL-1/search', 'POST'],
+      ['http://127.0.0.1:18765/api/sidecar/sessions/LOCAL-1/snapshot', 'GET']
+    ]);
   });
 
   it('loads evidence pack markdown as text', async () => {

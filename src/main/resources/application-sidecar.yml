@@ -1,0 +1,14 @@
+server:
+  port: ${SIDECAR_PORT:18765}
+
+thread-doctor:
+  sidecar:
+    port: ${SIDECAR_PORT:18765}
+    allowed-origins:
+      - http://localhost:5173
+      - http://127.0.0.1:5173
+      - http://localhost:8080
+      - http://127.0.0.1:8080
+    max-parse-millis: 600000
+    max-workers: 2
+    max-result-events: 200

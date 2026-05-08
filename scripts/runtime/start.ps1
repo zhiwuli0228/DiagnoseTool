@@ -1,9 +1,11 @@
 [CmdletBinding()]
 param(
     [int]$Port,
+    [int]$SidecarPort,
     [string]$JavaOpts,
     [string]$SpringProfilesActive,
-    [string]$AppArgs
+    [string]$AppArgs,
+    [switch]$SkipSidecar
 )
 
 $ErrorActionPreference = "Stop"
@@ -14,9 +16,12 @@ $FrontendPath = Join-Path $DeployRoot "frontend"
 $RuntimeDir = Join-Path $DeployRoot "runtime"
 $LogsDir = Join-Path $DeployRoot "logs"
 $PidFile = Join-Path $RuntimeDir "app.pid"
+$SidecarPidFile = Join-Path $RuntimeDir "sidecar.pid"
 $EnvFile = Join-Path $DeployRoot "app.env"
 $StdOutLog = Join-Path $LogsDir "app.out.log"
 $StdErrLog = Join-Path $LogsDir "app.err.log"
+$SidecarStdOutLog = Join-Path $LogsDir "sidecar.out.log"
+$SidecarStdErrLog = Join-Path $LogsDir "sidecar.err.log"
 
 function Read-AppEnv {
     if (-not (Test-Path $EnvFile)) {
@@ -84,6 +89,9 @@ Read-AppEnv
 if (-not $PSBoundParameters.ContainsKey("Port")) {
     $Port = if ($env:APP_PORT) { [int]$env:APP_PORT } else { 8080 }
 }
+if (-not $PSBoundParameters.ContainsKey("SidecarPort")) {
+    $SidecarPort = if ($env:SIDECAR_PORT) { [int]$env:SIDECAR_PORT } else { 18765 }
+}
 if (-not $PSBoundParameters.ContainsKey("JavaOpts")) {
     $JavaOpts = $env:JAVA_OPTS
 }
@@ -100,6 +108,13 @@ if (Test-Path $PidFile) {
         throw "Application already appears to be running with PID $existingPid. Run stop.ps1 first."
     }
     Remove-Item -LiteralPath $PidFile -Force
+}
+if (-not $SkipSidecar -and (Test-Path $SidecarPidFile)) {
+    $existingSidecarPid = (Get-Content -LiteralPath $SidecarPidFile -Raw).Trim()
+    if ($existingSidecarPid -and (Get-Process -Id ([int]$existingSidecarPid) -ErrorAction SilentlyContinue)) {
+        throw "Sidecar already appears to be running with PID $existingSidecarPid. Run stop.ps1 first."
+    }
+    Remove-Item -LiteralPath $SidecarPidFile -Force
 }
 
 $staticLocation = "file:///$($FrontendPath.Replace('\', '/'))/"
@@ -128,3 +143,25 @@ Write-Host "Application started."
 Write-Host "PID: $($process.Id)"
 Write-Host "URL: http://localhost:$Port/"
 Write-Host "Logs: $LogsDir"
+
+if (-not $SkipSidecar) {
+    $sidecarArguments = @()
+    $sidecarArguments += Split-Args $JavaOpts
+    $sidecarArguments += @("-jar", $JarPath)
+    $sidecarArguments += "--spring.profiles.active=sidecar"
+    $sidecarArguments += "--server.port=$SidecarPort"
+    $sidecarArguments += "--thread-doctor.sidecar.port=$SidecarPort"
+    $sidecarArgumentLine = ($sidecarArguments | ForEach-Object { Quote-Argument $_ }) -join " "
+    $sidecarProcess = Start-Process -FilePath "java" `
+        -ArgumentList $sidecarArgumentLine `
+        -WorkingDirectory $DeployRoot `
+        -RedirectStandardOutput $SidecarStdOutLog `
+        -RedirectStandardError $SidecarStdErrLog `
+        -WindowStyle Hidden `
+        -PassThru
+
+    $sidecarProcess.Id | Set-Content -LiteralPath $SidecarPidFile -Encoding ASCII
+    Write-Host "Sidecar started."
+    Write-Host "Sidecar PID: $($sidecarProcess.Id)"
+    Write-Host "Sidecar health: http://127.0.0.1:$SidecarPort/api/sidecar/health"
+}

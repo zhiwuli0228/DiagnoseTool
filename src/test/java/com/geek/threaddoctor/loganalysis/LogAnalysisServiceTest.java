@@ -291,6 +291,33 @@ class LogAnalysisServiceTest {
     }
 
     @Test
+    void acceptsSidecarResultAfterMaskingAndRejectsAbsolutePaths() {
+        LogAnalysisService service = service(properties(true, false, List.of(), 10, 100_000, 100_000, 2000, 8000));
+        LogAnalysisSession session = service.createSession();
+
+        service.submitSidecarResult(session.getId(), new SidecarResultSubmission(
+                List.of(new LogSource("SRC-1", LogSourceType.ZIP, "incident.zip", 100)),
+                List.of(new LogFileSummary("app.log", 100, 1, 1, 0)),
+                List.of(new LogEvent("E1", LocalDateTime.parse("2026-05-05T10:00:00"), "ERROR", "main",
+                        "com.geek.demo.AuthService", null, "failed apiKey=sk-secret-value email user@example.com",
+                        "java.lang.IllegalStateException", null, "failed apiKey=sk-secret-value", "app.log", 1, List.of())),
+                null,
+                "",
+                java.util.Map.of("mode", "sidecar")));
+
+        LogEvent event = service.search(session.getId(), new LogSearchRequest(
+                null, null, List.of("ERROR"), "failed", null, null, null, null, null, 10, true, true)).events().getFirst();
+        assertThat(event.message()).contains("[SECRET]").contains("[EMAIL]");
+        assertThat(event.message()).doesNotContain("sk-secret-value");
+
+        assertThatThrownBy(() -> service.submitSidecarResult(session.getId(), new SidecarResultSubmission(
+                List.of(new LogSource("SRC-2", LogSourceType.DIRECTORY, tempDir.resolve("logs").toString(), 100)),
+                List.of(), List.of(), null, "", java.util.Map.of())))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("SIDECAR_SOURCE_PATH");
+    }
+
+    @Test
     void masksSensitiveDataAndBoundsOutput() throws Exception {
         LogAnalysisService service = service(properties(true, false, List.of(), 10, 100_000, 100_000, 80, 120));
         LogAnalysisSession session = service.createSession();
@@ -314,7 +341,8 @@ class LogAnalysisServiceTest {
     private LogAnalysisProperties properties(boolean zipEnabled, boolean directoryScanEnabled, List<String> roots,
             int maxFiles, long maxCompressed, long maxUncompressed, int rawLimit, int stackLimit) {
         return new LogAnalysisProperties(zipEnabled, directoryScanEnabled, roots, maxFiles, maxCompressed,
-                maxUncompressed, 100.0, rawLimit, stackLimit, 5, 100, 100, true);
+                maxUncompressed, 100.0, rawLimit, stackLimit, 5, 100, 100,
+                250_000, 3, 20 * 1024 * 1024L, 2000, 20, true);
     }
 
     private MockMultipartFile zipFile(String name, String content) throws Exception {
